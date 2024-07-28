@@ -36,7 +36,32 @@ One LED board consists of 5 8x8 LED matrixes. Multiple boards can be daisy-chain
 | 7             |           | TPIC6B595, pin 9 (Output enable); 74HC244, pin 9 (2Y3) | Output enable, active-low; Not chained to the other side |
 | 8             |           | only last TPIC6B595, pin 18 (SER OUT)                  | Not chained to the other side                            |
 | 9             |           | 74HC244, pin 3 (2Y0)                                   | Not chained to the other side                            |
-| 10            |           | TPIC6B595, pin 12 (RCK); 74HC244, pin 7 (2Y2)          | Register clock; Not chained to the other side            |
+| 10            |           | 74HC244, pin 7 (2Y2) ; TPIC6B595, pin 12 (RCK);        | Register clock; Not chained to the other side            |
+| 11            |           |                                                        | Not connected?                                           |
+| 12            |           |                                                        | Not connected?                                           |
+| 13            |           |                                                        | Not connected?                                           |
+| 14            |           | All ground pins                                        | Ground                                                   |
+| 15            |           |                                                        | 15,16 and 17 are connected                               |
+| 16            |           |                                                        | 15,16 and 17 are connected                               |
+| 17            |           |                                                        | 15,16 and 17 are connected                               |
+| 18            | LED col 4 | each LED matrix, pin 1                                 |                                                          |
+| 19            | LED col 2 | each LED matrix, pin 1                                 |                                                          |
+| 20            | LED col 1 | each LED matrix, pin 9                                 |                                                          |
+
+## Connector (input)
+
+| Pin connector | Function  | Connected to                                           | Notes                                                    |
+| ------------- | --------- | ------------------------------------------------------ | -------------------------------------------------------- |
+| 1             | LED col 8 | each LED matrix, pin 5                                 |                                                          |
+| 2             | LED col 7 | each LED matrix, pin 2                                 |                                                          |
+| 3             | LED col 6 | each LED matrix, pin 7                                 |                                                          |
+| 4             | LED col 5 | each LED matrix, pin 1                                 |                                                          |
+| 5             | LED col 3 | each LED matrix, pin 8                                 |                                                          |
+| 6             |           | 78MO5, pin 1 (Input)                                   | Power?                                                   |
+| 7             |           | 74HC244, pin 11                                        | ???, via resistor ; Not chained to the other side |
+| 8             |           | 74HC244, pin 15                                        | ???, via resistor ; Not chained to the other side                            |
+| 9             |           | 74HC244, pin 17                                        | ???, via resistor ; Not chained to the other side                            |
+| 10            |           | 74HC244, pin 13                                        | ???, via resistor ; Not chained to the other side            |
 | 11            |           |                                                        | Not connected?                                           |
 | 12            |           |                                                        | Not connected?                                           |
 | 13            |           |                                                        | Not connected?                                           |
