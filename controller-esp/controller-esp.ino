@@ -90,6 +90,10 @@ constexpr size_t rowPins[8] =  { ROW_0, ROW_1, ROW_2, ROW_3, ROW_4, ROW_5, ROW_6
 #define STATE_HE 22
 #define STATE_HEL 23
 #define STATE_HELP 24
+#define STATE_ST 25
+#define STATE_STA 26
+#define STATE_STAT 27
+#define STATE_STATS 28
 
 struct State {
   unsigned char state = STATE_IDLE;
@@ -207,6 +211,18 @@ void printColorAt(WiFiClient* client, unsigned char x, unsigned char y) {
   }
 }
 
+bool wagenHaltOn = false;
+unsigned long long wagenHaltTurnedOnAt = 0;
+
+struct Stats {
+  unsigned long long pixelsDrawn = 0;
+  unsigned long long wagenHaltToggled = 0;
+  unsigned long long wagenHaltOnMillis = 0;
+  unsigned long long maxConnections = 0;
+  unsigned long long currentConnections = 0;
+};
+Stats stats;
+
 //template <typename F>
 //void stepState(State& state, unsigned char c, F printer) {
 void stepState(State& state, unsigned char c, WiFiClient* client) {
@@ -234,6 +250,7 @@ void stepState(State& state, unsigned char c, WiFiClient* client) {
     case STATE_Y: {
         unsigned char value = (c == 0 || c == '0') ? 0 : 1;
         allData[state.nextY][state.nextX] = value;
+        stats.pixelsDrawn += 1;
         state.state = STATE_IDLE;
       }
       break;
@@ -304,7 +321,7 @@ void stepState(State& state, unsigned char c, WiFiClient* client) {
           state.state = STATE_IDLE;
           break;
         }
-        
+
         if (c == '\n') {
           printColorAt(client, state.nextX, state.nextY);
           state.state = STATE_IDLE;
@@ -319,15 +336,15 @@ void stepState(State& state, unsigned char c, WiFiClient* client) {
           state.alpha = 0;
           state.blue = 0;
           state.asciiColorIndex = 0;
-          
+
           break;
         }
         state.state = STATE_IDLE;
       }
       break;
     case STATE_PX_Y_SPACE: {
-        
-        
+
+
         if (c >= 'A' && c <= 'F') {
           // To lowercase
           c += 32;
@@ -358,6 +375,7 @@ void stepState(State& state, unsigned char c, WiFiClient* client) {
               } else {
                 allData[state.nextY][(state.nextX / 8)] = oldValue & (~(1 << (7 - (state.nextX % 8))));
               }
+              stats.pixelsDrawn += 1;
             }
           }
           state.state = STATE_IDLE;
@@ -401,11 +419,12 @@ void stepState(State& state, unsigned char c, WiFiClient* client) {
     // SP: Full update binary
     case STATE_S: {
         state.spIndex = 0;
-        state.state = c == 'P' ? STATE_SP : c == 'I' ? STATE_SI : STATE_IDLE;
+        state.state = c == 'P' ? STATE_SP : c == 'I' ? STATE_SI :  c == 'T' ? STATE_ST : STATE_IDLE;
       }
       break;
     case STATE_SP: {
         ((unsigned char*)allData)[state.spIndex] = c;
+        stats.pixelsDrawn += 8;
 
         if (state.spIndex == ((HEIGHT * (WIDTH / 8)) - 1)) {
           state.state = STATE_IDLE;
@@ -422,7 +441,22 @@ void stepState(State& state, unsigned char c, WiFiClient* client) {
       }
       break;
     case STATE_WH: {
-        digitalWrite(WAGEN_HALT, (c == 'f') ? HIGH : LOW);
+        if (c >= 'A' && c <= 'F') {
+          // To lowercase
+          c += 32;
+        }
+        bool newWagenHalt = c == 'f';
+        if (wagenHaltOn != newWagenHalt) {
+          stats.wagenHaltToggled += 1;
+          if (newWagenHalt ) {
+            // Turned on
+            wagenHaltTurnedOnAt = millis();
+          } else {
+            stats.wagenHaltOnMillis += millis() - wagenHaltTurnedOnAt;
+          }
+        }
+        wagenHaltOn = newWagenHalt;
+        digitalWrite(WAGEN_HALT, wagenHaltOn ? HIGH : LOW);
         state.state = STATE_IDLE;
       }
       break;
@@ -467,6 +501,44 @@ void stepState(State& state, unsigned char c, WiFiClient* client) {
         state.state = STATE_IDLE;
       }
       break;
+
+    // STATS:
+    case STATE_ST: {
+        state.state = c == 'A' ? STATE_STA : STATE_IDLE;
+      }
+      break;
+    case STATE_STA: {
+        state.state = c == 'T' ? STATE_STAT : STATE_IDLE;
+      }
+      break;
+    case STATE_STAT: {
+        state.state = c == 'S' ? STATE_STATS : STATE_IDLE;
+      }
+      break;
+    case STATE_STATS: {
+        if (c == '\n') {
+          struct Stats {
+            unsigned long long pixelsDrawn = 0;
+            unsigned long long wagenHaltToggled = 0;
+            unsigned long long wagenHaltOnMillis = 0;
+            unsigned long long maxConnections = 0;
+            unsigned long long currentConnections = 0;
+          };
+          clientPrint(client, "px:");
+          clientPrintln(client, stats.pixelsDrawn);
+          clientPrint(client, "conn:");
+          clientPrintln(client, stats.currentConnections);
+          clientPrint(client, "max_conn:");
+          clientPrintln(client, stats.maxConnections);
+          clientPrint(client, "haltezeit:");
+          clientPrintln(client, stats.wagenHaltOnMillis + (wagenHaltOn ? (millis() - wagenHaltTurnedOnAt) : 0));
+          clientPrint(client, "toggled:");
+          clientPrintln(client, stats.wagenHaltToggled);
+        }
+        state.state = STATE_IDLE;
+      }
+      break;
+
     default:
       state.state = STATE_IDLE;
   }
