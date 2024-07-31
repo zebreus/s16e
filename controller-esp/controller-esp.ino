@@ -526,6 +526,8 @@ void stepState(State& state, unsigned char c, WiFiClient* client) {
           };
           clientPrint(client, "px:");
           clientPrintln(client, stats.pixelsDrawn);
+          clientPrint(client, "up:");
+          clientPrintln(client, millis());
           clientPrint(client, "conn:");
           clientPrintln(client, stats.currentConnections);
           clientPrint(client, "max_conn:");
@@ -830,6 +832,7 @@ void processWifi() {
     }
   }
 
+  unsigned int connectedClients = 0;
   //bool non = true;
   for (size_t index = 0 ; index < MAX_CLIENTS ; index++) {
     if (!clients[index]) {
@@ -852,7 +855,11 @@ void processWifi() {
       clients[index] = WiFiClient();
       continue;
     }
+    connectedClients++;
   }
+  stats.currentConnections = connectedClients;
+  if (connectedClients > stats.maxConnections){
+  stats.maxConnections = connectedClients;}
   //  if(non){
   //    Serial.println("no clients ");}
 }
