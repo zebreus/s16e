@@ -1,15 +1,19 @@
 #include <WiFi.h>
 #include <lwip/sockets.h>
 #include <lwip/netdb.h>
+#include "octafont-regular.h"
+#include "octafont-bold.h"
 
 // Output enable low active
-#define OUTPUT_ENABLE 0
+#define OUTPUT_ENABLE 4
 // Serial data
-#define DATA 1
+#define DATA 3
 // Shift register clock
 #define SHIFT_REGISTER_CLOCK 2
 // Register clock
-#define REGISTER_CLOCK 3
+#define REGISTER_CLOCK 1
+
+#define SLOWDOWN
 
 
 
@@ -22,7 +26,7 @@
 #define ROW_6 20
 #define ROW_7 21
 
-#define WAGEN_HALT 4
+#define WAGEN_HALT 0
 
 constexpr unsigned char WIDTH = 120;
 constexpr unsigned char HEIGHT = 8;
@@ -49,16 +53,18 @@ constexpr unsigned char HEIGHT = 8;
 //  {0b00000000, 0b11111110, 0b00000000, 0b00011100, 0b11111111, 0b00000000, 0b10000000, 0b10000000, 0b10000000, 0b00000000, 0b00000000, 0b00000000, 0b11111110, 0b00000000, 0b00000000}
 //};
 
-unsigned char allData[8][15] = {
-  {0b00000000, 0b01111110, 0b00000000, 0b00001100, 0b00000000, 0b00000000, 0b01111100, 0b00000000, 0b01111100, 0b00000000, 0b00011110, 0b00000000, 0b01111110, 0b00000000, 0b00000000},
-  {0b00000000, 0b10000010, 0b00000000, 0b00010010, 0b00000000, 0b00000000, 0b10000010, 0b00000000, 0b10000010, 0b00000000, 0b01100010, 0b00000000, 0b10000010, 0b00000000, 0b00000000},
-  {0b00000000, 0b10000000, 0b00000000, 0b00100010, 0b00000000, 0b00000000, 0b10000000, 0b00000000, 0b10000000, 0b00000000, 0b11000010, 0b00000000, 0b10000010, 0b00000000, 0b00000000},
-  {0b00000000, 0b01111100, 0b00000000, 0b00100000, 0b00000000, 0b00000000, 0b10000000, 0b00000000, 0b01111100, 0b00000000, 0b00000010, 0b00000000, 0b01111100, 0b00000000, 0b00000000},
-  {0b00000000, 0b00000010, 0b00000000, 0b00010000, 0b00000000, 0b00000000, 0b10000000, 0b00000000, 0b00000010, 0b00000000, 0b00000010, 0b00000000, 0b00000010, 0b00000000, 0b00000000},
-  {0b00000000, 0b10000010, 0b00000000, 0b00010010, 0b00000000, 0b00000000, 0b10000000, 0b00000000, 0b10000010, 0b00000000, 0b00000010, 0b00000000, 0b10000010, 0b00000000, 0b00000000},
-  {0b00000000, 0b10000010, 0b00000000, 0b00001100, 0b00000000, 0b00000000, 0b10000010, 0b00000000, 0b10000010, 0b00000000, 0b00000010, 0b00000000, 0b10000010, 0b00000000, 0b00000000},
-  {0b00000000, 0b01111100, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b01111100, 0b00000000, 0b01111100, 0b00000000, 0b00011110, 0b00000000, 0b01111100, 0b00000000, 0b00000000}
-};
+//unsigned char allData[8][15] = {
+//  {0b00000000, 0b01111110, 0b00000000, 0b00001100, 0b00000000, 0b00000000, 0b01111100, 0b00000000, 0b01111100, 0b00000000, 0b00011110, 0b00000000, 0b01111110, 0b00000000, 0b00000000},
+//  {0b00000000, 0b10000010, 0b00000000, 0b00010010, 0b00000000, 0b00000000, 0b10000010, 0b00000000, 0b10000010, 0b00000000, 0b01100010, 0b00000000, 0b10000010, 0b00000000, 0b00000000},
+//  {0b00000000, 0b10000000, 0b00000000, 0b00100010, 0b00000000, 0b00000000, 0b10000000, 0b00000000, 0b10000000, 0b00000000, 0b11000010, 0b00000000, 0b10000010, 0b00000000, 0b00000000},
+//  {0b00000000, 0b01111100, 0b00000000, 0b00100000, 0b00000000, 0b00000000, 0b10000000, 0b00000000, 0b01111100, 0b00000000, 0b00000010, 0b00000000, 0b01111100, 0b00000000, 0b00000000},
+//  {0b00000000, 0b00000010, 0b00000000, 0b00010000, 0b00000000, 0b00000000, 0b10000000, 0b00000000, 0b00000010, 0b00000000, 0b00000010, 0b00000000, 0b00000010, 0b00000000, 0b00000000},
+//  {0b00000000, 0b10000010, 0b00000000, 0b00010010, 0b00000000, 0b00000000, 0b10000000, 0b00000000, 0b10000010, 0b00000000, 0b00000010, 0b00000000, 0b10000010, 0b00000000, 0b00000000},
+//  {0b00000000, 0b10000010, 0b00000000, 0b00001100, 0b00000000, 0b00000000, 0b10000010, 0b00000000, 0b10000010, 0b00000000, 0b00000010, 0b00000000, 0b10000010, 0b00000000, 0b00000000},
+//  {0b00000000, 0b01111100, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b01111100, 0b00000000, 0b01111100, 0b00000000, 0b00011110, 0b00000000, 0b01111100, 0b00000000, 0b00000000}
+//};
+
+unsigned char allData[8][15];
 
 
 constexpr size_t rowPins[8] =  { ROW_0, ROW_1, ROW_2, ROW_3, ROW_4, ROW_5, ROW_6, ROW_7 };
@@ -94,6 +100,13 @@ constexpr size_t rowPins[8] =  { ROW_0, ROW_1, ROW_2, ROW_3, ROW_4, ROW_5, ROW_6
 #define STATE_STA 26
 #define STATE_STAT 27
 #define STATE_STATS 28
+#define STATE_T 29
+#define STATE_TX 30
+#define STATE_TXT 31
+#define STATE_D 32
+#define STATE_DE 33
+#define STATE_DEV 34
+#define STATE_TXT_SPACE 35
 
 struct State {
   unsigned char state = STATE_IDLE;
@@ -105,10 +118,11 @@ struct State {
   unsigned char green = 0;
   unsigned char blue = 0;
   unsigned char alpha = 0;
+  size_t textPosition = 0;
 };
 
 State serialState;
-constexpr size_t MAX_CHARS_PER_PIXEL = 15 * 8;
+constexpr size_t MAX_CHARS_PER_PIXEL = 10 + 120;
 
 
 void printGreeting(WiFiClient* client) {
@@ -166,12 +180,17 @@ void printHelp(WiFiClient* client) {
   clientPrintln(client, "Light up the 'Wagen hält' indicator:");
   clientPrintln(client, "  WHf: Activate the 'Wagen halt' indicator");
   clientPrintln(client, "  WH0: Deactivate the 'Wagen halt' indicator");
+  clientPrintln(client, "Print some text:");
+  clientPrintln(client, "  TXT <text>: Display text");
   clientPrintln(client, "Shorthands for PX:");
   clientPrintln(client, "  PX <x> <y> 0: Set the pixel at position (x, y) to black");
   clientPrintln(client, "  PX <x> <y> f: Set the pixel at position (x, y) to white");
   clientPrintln(client, "Binary commands (No newline required):");
   clientPrintln(client, "  PB<x><y><v>: Set the pixel at (x, y) to brightness <v>. <x>, <y> and <v> are one byte binary numbers.");
   clientPrintln(client, "  SP: Update the whole image. Send SP and then a bitstream for the whole image");
+  clientPrintln(client, "");
+  clientPrintln(client, "https://github.com/zebreus/s16e");
+  
 
 
 }
@@ -228,7 +247,11 @@ Stats stats;
 void stepState(State& state, unsigned char c, WiFiClient* client) {
   switch (state.state) {
     case STATE_IDLE: {
-        state.state = c == 'P' ? STATE_P : c == 'S' ? STATE_S : c == 'W' ? STATE_W : c == 'H' ? STATE_H : STATE_IDLE;
+        if (c == '\n') {
+          clientPrintln(client, 
+          "Type 'HELP' for help");
+          }
+        state.state = c == 'P' ? STATE_P : c == 'S' ? STATE_S : c == 'W' ? STATE_W : c == 'H' ? STATE_H : c == 'T' ? STATE_T : c == 'D' ? STATE_D : STATE_IDLE;
       }
       break;
     case STATE_P: {
@@ -238,18 +261,24 @@ void stepState(State& state, unsigned char c, WiFiClient* client) {
 
     // PB: Binary
     case STATE_PB: {
-        state.nextX = c - '0';
+        state.nextX = c;
         state.state = state.nextX < WIDTH ? STATE_X : STATE_IDLE;
       }
       break;
     case STATE_X: {
-        state.nextY = c - '0';
+        state.nextY = c;
         state.state = state.nextY < HEIGHT ? STATE_Y : STATE_IDLE;
       }
       break;
     case STATE_Y: {
+      unsigned char oldValue = allData[state.nextY][(state.nextX / 8)];
         unsigned char value = (c == 0 || c == '0') ? 0 : 1;
-        allData[state.nextY][state.nextX] = value;
+//        allData[state.nextY % HEIGHT][state.nextX % WIDTH] = value;
+            if  (value ) {
+                allData[state.nextY][(state.nextX / 8)] = oldValue | (1 << (7 - (state.nextX % 8)));
+              } else {
+                allData[state.nextY][(state.nextX / 8)] = oldValue & (~(1 << (7 - (state.nextX % 8))));
+              }
         stats.pixelsDrawn += 1;
         state.state = STATE_IDLE;
       }
@@ -541,6 +570,35 @@ void stepState(State& state, unsigned char c, WiFiClient* client) {
       }
       break;
 
+      
+    // TXT:
+    case STATE_T: {
+        state.state = c == 'X' ? STATE_TX : STATE_IDLE;
+      }
+      break;
+    case STATE_TX: {
+        state.state = c == 'T' ? STATE_TXT : STATE_IDLE;
+      }
+      break;
+   case STATE_TXT: {
+    state.textPosition = 0;
+        state.state = c == ' ' ? STATE_TXT_SPACE : STATE_IDLE;
+      }
+      break;
+     case STATE_TXT_SPACE: {
+        if (c == 0 || c == '\n') {
+          //TODO: get_width == -1
+          state.state = STATE_IDLE; 
+          break;
+         }
+         auto width = drawCharacter(c, state.textPosition);
+         state.textPosition += width;
+         drawColumn(0, state.textPosition);
+         state.textPosition += 1;
+         
+      }
+      break;
+
     default:
       state.state = STATE_IDLE;
   }
@@ -551,27 +609,85 @@ void stepState(State& state, unsigned char c, WiFiClient* client) {
 
 #define SPEED 0
 
-// Set the next bit a single bit
-void writeData(bool data) {
-  digitalWrite(SHIFT_REGISTER_CLOCK, LOW);
-  digitalWrite(DATA, data);
-  digitalWrite(SHIFT_REGISTER_CLOCK, HIGH);
-}
-
 // Write 8 bits
 void writeChar(unsigned char data) {
-  serialStep();
-  networkStep();
   for (size_t index = 0; index < 8 ; index++) {
-
-
-    digitalWrite(SHIFT_REGISTER_CLOCK, LOW);
-    digitalWrite(DATA, data & (1 << index));
+        digitalWrite(SHIFT_REGISTER_CLOCK, LOW);
+    SLOWDOWN
+    digitalWrite(DATA, (data & (1 << index)) ? HIGH : LOW);
+    SLOWDOWN
     digitalWrite(SHIFT_REGISTER_CLOCK, HIGH);
+    SLOWDOWN
+//    digitalWrite(DATA, (data & (1 << index)) ? LOW : HIGH);
+//    SLOWDOWN
+//     digitalWrite(SHIFT_REGISTER_CLOCK, LOW);
+//    SLOWDOWN
+
   }
 }
 
-void writeChars(unsigned char* data, int size) {
+void drawColumn(char character, size_t position) {
+  position = position % WIDTH;
+  // Offset of the char in the column
+  size_t char_pos = position / 8;
+  // Offset of the bit in the char
+  size_t pos_char = position % 8;
+  
+  for (size_t row = 0; row < 8 ; row++) {
+    unsigned char prev_char = allData[row][char_pos];
+    if  (character & (1 << (row))) {
+      allData[row][char_pos] = prev_char | (1 << (7 - (pos_char)));
+    } else {
+      allData[row][char_pos] = prev_char & (~(1 << (7 - (pos_char))));
+    }
+  }
+}
+
+
+OctafontRegular font;
+//OctafontBold font;
+unsigned char drawCharacter(char character, uint8_t position) {
+//  if (character == ' '){
+////    return 0;
+//    drawColumn(0, position);
+//    return 1;
+//  }
+  auto width = font.get_width(character);
+  if (width == -1){
+    return 0; 
+  }
+  for (auto i = 0; i < width;  i++) {
+    auto octet = font.get_octet(character, i);
+    drawColumn(octet, position + i);
+  }
+  return width;
+}
+
+void drawString(const char* string, uint8_t position) {
+  size_t index;
+  while (string[index] != 0){
+    char thisChar = string[index];
+    auto width = drawCharacter(thisChar, position);
+    position += width;
+ 
+    index+=1;
+    char nextChar = string[index];
+
+    if (!nextChar){
+      continue;
+    }
+    if (PixelFont::get_undercut(font,thisChar,font,nextChar)){
+      continue;
+    }
+    drawColumn(0, position);
+    position++;
+    
+    
+    
+  }
+}
+
+void writeChars(const unsigned char* data, int size) {
   for (int index = size; index >= 0 ; index--) {
     writeChar(data[index]);
   }
@@ -583,19 +699,34 @@ void displayFrame() {
 
     // Disable output
     digitalWrite(OUTPUT_ENABLE, HIGH);
+    SLOWDOWN
 
     auto low = ((row - 1) % HEIGHT) ? LOW : HIGH;
     auto high = row == 0 ? LOW : LOW;
     // Switch the new row on
     digitalWrite(rowPins[(row - 1) % HEIGHT], HIGH);
-    digitalWrite(rowPins[row], LOW);
+    SLOWDOWN
+    serialStep();
+    networkStep();
+        
 
     // Move to output
     digitalWrite(REGISTER_CLOCK, HIGH);
+    
+    delay(1);
+    SLOWDOWN
     digitalWrite(REGISTER_CLOCK, LOW);
+    SLOWDOWN
 
     // Enable output
     digitalWrite(OUTPUT_ENABLE, LOW);
+    SLOWDOWN
+
+    
+
+digitalWrite(rowPins[row], LOW);
+    SLOWDOWN
+    
   }
 }
 
@@ -695,8 +826,9 @@ void setupWifi() {
   }
 
   bool connected = false;
-  const char* ssid = "Haselnussnetz";
-  const char* password = "policelinedonotcross";
+  const char* ssid = "Homeautomation";
+  #error Insert the WiFi password in the next line (and comment this line)
+  const char* password = "INSERT_PASSWORD_HERE";
   for (int i = 0; i < n; ++i) {
 
     if (WiFi.SSID(i) == ssid) {
@@ -873,10 +1005,34 @@ void loop()
   // WiFI housekeeping between frames
   //  delay(1000);
   //  auto before = millis();
+  size_t offset = 0;
+//  for (int i = 0 ; i < 8; i++){
+//  for (int z = 0 ; z < 15; z++){
+//    allData [i][z] = 0xff;
+//    }
+//    }
+char message[101];  // max length you’ll need +1
+snprintf(message, 100, "nc %s 23" , WiFi.localIP().toString().c_str());
+//
+  drawString(message, offset);
+  while (true){
+//  drawCharacter('%', 35);
+
+//  offset = (offset + 1) % WIDTH;
+//  drawColumn(0, offset - 1 + 120);
+
+
+//  writeColumn(0x7c, 35);
+//   writeColumn(0x12, 36);
+//    writeColumn(0x11, 37);
+//     writeColumn(0x12, 38);
+//      writeColumn(0x7c, 39);
+//for(size_t i = 0; i < 4 ; i++){
   processWifi();
-  //   // Display frame
-  //   auto middle = millis();
   displayFrame();
+//}
+
+  }
   //   auto after = millis();
   //
   //   auto wifiDuration = middle - before;
