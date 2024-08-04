@@ -612,7 +612,7 @@ void stepState(State& state, unsigned char c, WiFiClient* client) {
 // Write 8 bits
 void writeChar(unsigned char data) {
   for (size_t index = 0; index < 8 ; index++) {
-        digitalWrite(SHIFT_REGISTER_CLOCK, LOW);
+    digitalWrite(SHIFT_REGISTER_CLOCK, LOW);
     SLOWDOWN
     digitalWrite(DATA, (data & (1 << index)) ? HIGH : LOW);
     SLOWDOWN
@@ -693,38 +693,109 @@ void writeChars(const unsigned char* data, int size) {
   }
 }
 
+hw_timer_t *timer = NULL;
+
+void turnOff0() {
+  digitalWrite(rowPins[0], HIGH);
+}
+void turnOff1() {
+  digitalWrite(rowPins[1], HIGH);
+}
+void turnOff2() {
+  digitalWrite(rowPins[2], HIGH);
+}
+void turnOff3() {
+  digitalWrite(rowPins[3], HIGH);
+}
+void turnOff4() {
+  digitalWrite(rowPins[4], HIGH);
+}
+void turnOff5() {
+  digitalWrite(rowPins[5], HIGH);
+}
+void turnOff6() {
+  digitalWrite(rowPins[6], HIGH);
+}
+void turnOff7() {
+  digitalWrite(rowPins[7], HIGH);
+  
+}
+void setTurnOffInterrupt(unsigned char row) {
+ switch (row) {
+  case 0:
+   timerAttachInterrupt(timer, &turnOff0);
+   break;
+  case 1:
+   timerAttachInterrupt(timer, &turnOff1);
+   break;
+  case 2:
+   timerAttachInterrupt(timer, &turnOff2);
+   break;
+  case 3:
+   timerAttachInterrupt(timer, &turnOff3);
+   break;
+  case 4:
+   timerAttachInterrupt(timer, &turnOff4);
+   break;
+  case 5:
+   timerAttachInterrupt(timer, &turnOff5);
+   break;
+  case 6:
+   timerAttachInterrupt(timer, &turnOff6);
+   break;
+  case 7:
+   timerAttachInterrupt(timer, &turnOff7);
+   break;
+ }
+}
+
 void displayFrame() {
   for (size_t row = 0; row < HEIGHT ; row++) {
+    // Switch the previous row on
+    
+    
+    timerRestart(timer);
+    timerAlarm(timer, 800, false, 0);
+    digitalWrite(rowPins[(row - 1) % HEIGHT], LOW);
+    setTurnOffInterrupt((row - 1) % HEIGHT);
+    
+    // Push data
     writeChars(allData[row], (WIDTH / 8));
+
+    serialStep();
+    networkStep();
+
+    while(timerRead(timer) < 1000) {
+     true;
+    }
+    timerDetachInterrupt(timer);
+
+
+
+
+    auto low = ((row - 1) % HEIGHT) ? LOW : HIGH;
+    auto high = row == 0 ? LOW : LOW;
+    // Switch the new row on
+
+    // Switch previous row off
+//    digitalWrite(rowPins[(row - 1) % HEIGHT], HIGH);
+//    SLOWDOWN
 
     // Disable output
     digitalWrite(OUTPUT_ENABLE, HIGH);
     SLOWDOWN
 
-    auto low = ((row - 1) % HEIGHT) ? LOW : HIGH;
-    auto high = row == 0 ? LOW : LOW;
-    // Switch the new row on
-    digitalWrite(rowPins[(row - 1) % HEIGHT], HIGH);
-    SLOWDOWN
-    serialStep();
-    networkStep();
-        
+
 
     // Move to output
     digitalWrite(REGISTER_CLOCK, HIGH);
+//    delay(1);
+    SLOWDOWN
     
-    delay(1);
-    SLOWDOWN
-    digitalWrite(REGISTER_CLOCK, LOW);
-    SLOWDOWN
-
     // Enable output
     digitalWrite(OUTPUT_ENABLE, LOW);
     SLOWDOWN
-
-    
-
-digitalWrite(rowPins[row], LOW);
+    digitalWrite(REGISTER_CLOCK, LOW);
     SLOWDOWN
     
   }
@@ -761,14 +832,8 @@ void networkStep() {
     }
 
     //client.flush();
-
   }
 }
-
-
-
-
-
 
 const char* apSsid = "Strassenbahnanzeige";
 
@@ -777,7 +842,6 @@ WiFiServer server(23);
 constexpr bool SKIP_SCAN = true;
 
 void setupWifi() {
-
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("I am already connected");
     return;
@@ -786,7 +850,9 @@ void setupWifi() {
   WiFi.setHostname("strassenbahnanzeige");
 
   Serial.println("Ok, first I am opening my AP to make talking to me easier!");
-  WiFi.mode(WIFI_AP_STA);
+//  WiFi.mode(WIFI_AP_STA);
+WiFi.useStaticBuffers(true);
+ WiFi.mode(WIFI_AP_STA);
   WiFi.disconnect();
   //  delay(1000);
   //   WiFi.softAPenableIPv6();
@@ -795,13 +861,10 @@ void setupWifi() {
   IPAddress subnet(255, 255, 255, 0);
   WiFi.softAPConfig(localIP,  gateway,   subnet);
   delay(2000);
-
-
   WiFi.softAP(apSsid, NULL);
-
   Serial.println("My IP on my own AP is:");
   Serial.println(WiFi.softAPIP());
-  //    Serial.println(WiFi.softAPIPv6());
+  // Serial.println(WiFi.softAPIPv6());
 
 
 
@@ -828,7 +891,7 @@ void setupWifi() {
   bool connected = false;
   const char* ssid = "Homeautomation";
   #error Insert the WiFi password in the next line (and comment this line)
-  const char* password = "INSERT_PASSWORD_HERE";
+  const char* password = "INSERT_HERE";
   for (int i = 0; i < n; ++i) {
 
     if (WiFi.SSID(i) == ssid) {
@@ -909,6 +972,13 @@ void setup()
   Serial.begin(115200);
   setupWifi();
   setupDisplay();
+
+  timer = timerBegin(1000000);
+
+  size_t offset = 0;
+char message[101];  // max length you’ll need +1
+snprintf(message, 100, "nc %s 23" , WiFi.localIP().toString().c_str());
+  drawString(message, offset);
 }
 
 
@@ -1005,17 +1075,14 @@ void loop()
   // WiFI housekeeping between frames
   //  delay(1000);
   //  auto before = millis();
-  size_t offset = 0;
+  
 //  for (int i = 0 ; i < 8; i++){
 //  for (int z = 0 ; z < 15; z++){
 //    allData [i][z] = 0xff;
 //    }
 //    }
-char message[101];  // max length you’ll need +1
-snprintf(message, 100, "nc %s 23" , WiFi.localIP().toString().c_str());
-//
-  drawString(message, offset);
-  while (true){
+
+  
 //  drawCharacter('%', 35);
 
 //  offset = (offset + 1) % WIDTH;
@@ -1028,11 +1095,11 @@ snprintf(message, 100, "nc %s 23" , WiFi.localIP().toString().c_str());
 //     writeColumn(0x12, 38);
 //      writeColumn(0x7c, 39);
 //for(size_t i = 0; i < 4 ; i++){
+//  processWifi();
+while (true){
   processWifi();
   displayFrame();
-//}
-
-  }
+}
   //   auto after = millis();
   //
   //   auto wifiDuration = middle - before;
