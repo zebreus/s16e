@@ -119,10 +119,14 @@ struct State {
   unsigned char blue = 0;
   unsigned char alpha = 0;
   size_t textPosition = 0;
+
+  char* sendingText = nullptr;
+  size_t charactersLeft = 0;
+  
 };
 
 State serialState;
-constexpr size_t MAX_CHARS_PER_PIXEL = 10 + 120;
+
 
 
 void printGreeting(WiFiClient* client) {
@@ -170,29 +174,28 @@ void clientPrint(WiFiClient* client, int content) {
   }
 }
 
+const char help[] = "This display supports the common pixelflut commands and some own commands:\n\
+Pixelflut commands:\n\
+  HELP: Print this help message\n\
+  SIZE: Returns the size of the visible canvas in pixel as SIZE <w> <h>\n\
+  PX <x> <y> Return the current color of a pixel as PX <x> <y> <rrggbb>\n\
+  PX <x> <y> <rrggbb(aa)>: Draw a single pixel at position (x, y) with the specified hex color code. ffffff is on; everything else is off.\n\
+Light up the 'Wagen hält' indicator:\n\
+  WHf: Activate the 'Wagen halt' indicator\n\
+  WH0: Deactivate the 'Wagen halt' indicator\n\
+Print some text:\n\
+  TXT <text>: Display text\n\
+Shorthands for PX:\n\
+  PX <x> <y> 0: Set the pixel at position (x, y) to black\n\
+  PX <x> <y> f: Set the pixel at position (x, y) to white\n\
+Binary commands (No newline required):\n\
+  PB<x><y><v>: Set the pixel at (x, y) to brightness <v>. <x>, <y> and <v> are one byte binary numbers.\n\
+  SP: Update the whole image. Send SP and then a bitstream for the whole image\n\
+\n\
+https://github.com/zebreus/s16e";
+
 void printHelp(WiFiClient* client) {
-  clientPrintln(client, "This display supports the common pixelflut commands and some own commands:");
-  clientPrintln(client, "Pixelflut commands:");
-  clientPrintln(client, "  HELP: Print this help message");
-  clientPrintln(client, "  SIZE: Returns the size of the visible canvas in pixel as SIZE <w> <h>");
-  clientPrintln(client, "  PX <x> <y> Return the current color of a pixel as PX <x> <y> <rrggbb>");
-  clientPrintln(client, "  PX <x> <y> <rrggbb(aa)>: Draw a single pixel at position (x, y) with the specified hex color code. ffffff is on; everything else is off.");
-  clientPrintln(client, "Light up the 'Wagen hält' indicator:");
-  clientPrintln(client, "  WHf: Activate the 'Wagen halt' indicator");
-  clientPrintln(client, "  WH0: Deactivate the 'Wagen halt' indicator");
-  clientPrintln(client, "Print some text:");
-  clientPrintln(client, "  TXT <text>: Display text");
-  clientPrintln(client, "Shorthands for PX:");
-  clientPrintln(client, "  PX <x> <y> 0: Set the pixel at position (x, y) to black");
-  clientPrintln(client, "  PX <x> <y> f: Set the pixel at position (x, y) to white");
-  clientPrintln(client, "Binary commands (No newline required):");
-  clientPrintln(client, "  PB<x><y><v>: Set the pixel at (x, y) to brightness <v>. <x>, <y> and <v> are one byte binary numbers.");
-  clientPrintln(client, "  SP: Update the whole image. Send SP and then a bitstream for the whole image");
-  clientPrintln(client, "");
-  clientPrintln(client, "https://github.com/zebreus/s16e");
-  
-
-
+  clientPrintln(client, (char*)help);
 }
 
 //template <typename F>
@@ -372,8 +375,6 @@ void stepState(State& state, unsigned char c, WiFiClient* client) {
       }
       break;
     case STATE_PX_Y_SPACE: {
-
-
         if (c >= 'A' && c <= 'F') {
           // To lowercase
           c += 32;
@@ -525,7 +526,8 @@ void stepState(State& state, unsigned char c, WiFiClient* client) {
       break;
     case STATE_HELP: {
         if (c == '\n') {
-          printHelp(client);
+          state.charactersLeft = sizeof(help);
+          state.sendingText = (char*)help;
         }
         state.state = STATE_IDLE;
       }
@@ -802,12 +804,29 @@ void displayFrame() {
   }
 }
 
+constexpr size_t MAX_CHARS_PER_PIXEL = 10 + 120;
+
 void serialStep() {
   unsigned int charsRemaining = MAX_CHARS_PER_PIXEL;
   while (Serial.available() && charsRemaining > 0) {
     charsRemaining -= 1;
     unsigned char c = Serial.read();
     stepState(serialState, c, nullptr);
+  }
+  if (serialState.sendingText != nullptr) {
+  unsigned int sendChars = MAX_CHARS_PER_PIXEL;
+  if (serialState.charactersLeft < sendChars ){
+    sendChars = serialState.charactersLeft;
+  }
+  for (size_t i = 0; i < sendChars; i++) {
+    Serial.write(serialState.sendingText[i]);
+  }
+  serialState.sendingText = &serialState.sendingText[sendChars];
+  serialState.charactersLeft = serialState.charactersLeft - sendChars;
+  if (serialState.charactersLeft <= 0) {
+    serialState.sendingText = nullptr;
+  }
+ 
   }
 }
 
@@ -821,15 +840,41 @@ void networkStep() {
     auto client = clients[index];
 
     auto availableBytes = client.available();
-    if (!availableBytes) {
-      continue;
-    }
+    if (availableBytes) {
+
     auto readBytes  = 0;
     while (readBytes < availableBytes && readBytes < MAX_CHARS_PER_PIXEL) {
       readBytes++;
       auto data = client.read();
       stepState(clientStates[index], data, &client);
       //      client.write(data);
+    }
+    }
+
+    auto& state = clientStates[index];
+
+      if (state.sendingText != nullptr) {
+  unsigned int sendChars = MAX_CHARS_PER_PIXEL;
+  if (state.charactersLeft < sendChars ){
+    sendChars = state.charactersLeft;
+  }
+  if (sendChars > 0) {
+    char buffer[MAX_CHARS_PER_PIXEL + 1];
+    memcpy(buffer, state.sendingText, sendChars);
+    buffer[sendChars] = 0;
+    client.println((char*)buffer);
+    client.flush();
+  }
+//  for (size_t i = 0; i < sendChars; i++) {
+//    
+//    client.write(state.sendingText[i]);
+//  }
+  state.sendingText = &state.sendingText[sendChars];
+  state.charactersLeft = state.charactersLeft - sendChars;
+  if (state.charactersLeft <= 0) {
+    state.sendingText = nullptr;
+  }
+ 
     }
 
     //client.flush();
