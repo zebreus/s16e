@@ -757,26 +757,30 @@ portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
 void displayFrame() {
       serialStep();
     networkStep();
-  taskENTER_CRITICAL(&myMutex);
+//  
   
   for (size_t row = 0; row < HEIGHT ; row++) {
     // Switch the previous row on
+//    taskENTER_CRITICAL(&myMutex);
+vTaskSuspendAll();
     
     
     timerRestart(timer);
-    timerAlarm(timer, 800, false, 0);
+    timerAlarm(timer, 300, false, 0);
     digitalWrite(rowPins[(row - 1) % HEIGHT], LOW);
-//    setTurnOffInterrupt((row - 1) % HEIGHT);
+    setTurnOffInterrupt((row - 1) % HEIGHT);
     
     // Push data
     writeChars(allData[row], (WIDTH / 8));
 
 
 
-    while(timerRead(timer) < 1000) {
+    while(timerRead(timer) < 350) {
      true;
-     digitalWrite(rowPins[(row - 1) % HEIGHT], HIGH);
+//     digitalWrite(rowPins[(row - 1) % HEIGHT], HIGH);
     }
+//    taskEXIT_CRITICAL(&myMutex);
+ xTaskResumeAll();
 //    timerDetachInterrupt(timer);
 
 
@@ -808,8 +812,6 @@ void displayFrame() {
     SLOWDOWN
     
   }
-  taskEXIT_CRITICAL(&myMutex);
-  
 }
 
 constexpr size_t MAX_CHARS_PER_PIXEL = 10 + 120;
