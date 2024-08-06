@@ -1014,7 +1014,7 @@ void setupDisplay() {
   digitalWrite(REGISTER_CLOCK, LOW);
 
   pinMode(WAGEN_HALT, OUTPUT);
-  digitalWrite(WAGEN_HALT, HIGH);
+  digitalWrite(WAGEN_HALT, LOW);
 
   for (auto pin : rowPins) {
     pinMode(pin, OUTPUT);
