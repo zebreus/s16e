@@ -653,8 +653,9 @@ unsigned char drawCharacter(char character, uint8_t position) {
 //    return 1;
 //  }
   auto width = font.get_width(character);
-  if (width == -1){
-    return 0; 
+  if (width == 255){
+    character = '?';
+    width = font.get_width(character);
   }
   for (auto i = 0; i < width;  i++) {
     auto octet = font.get_octet(character, i);
