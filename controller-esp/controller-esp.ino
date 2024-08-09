@@ -108,6 +108,14 @@ constexpr size_t rowPins[8] =  { ROW_0, ROW_1, ROW_2, ROW_3, ROW_4, ROW_5, ROW_6
 #define STATE_DE 33
 #define STATE_DEV 34
 #define STATE_TXT_SPACE 35
+#define STATE_R 36
+#define STATE_RO 37
+#define STATE_ROT 38
+#define STATE_ROT_X 39
+#define STATE_ROT_Y 40
+#define STATE_TI 41
+#define STATE_SL 42
+#define STATE_SL_NUM 42
 
 struct State {
   unsigned char state = STATE_IDLE;
@@ -121,8 +129,16 @@ struct State {
   unsigned char alpha = 0;
   size_t textPosition = 0;
 
+  // The text that is currently been send
   char* sendingText = nullptr;
+  // A buffer to use for sendingText
+  char sendingBuffer[100];
+  // The number of characters that are left
   size_t charactersLeft = 0;
+
+  // Sleep until this time when sleep is set
+  unsigned int sleepUntil = 0;
+  bool sleep = false;
   
 };
 
@@ -192,8 +208,12 @@ Shorthands for PX:\n\
 Binary commands (No newline required):\n\
   PB<x><y><v>: Set the pixel at (x, y) to brightness <v>. <x>, <y> and <v> are one byte binary numbers.\n\
   SP: Update the whole image. Send SP and then a bitstream for the whole image\n\
+Fancy commands (binary and untested) \n\
+  ROT<x><y>: Rotate the buffer by <x> and <y>. <x> and <y> are one byte binary numbers\n\
+  TI: Get the current time in millis as ascii string\n\
+  SL <until>: Pause processing all further commands, until time is reached. Until is a time in millis as ascii string.\n\
 \n\
-https://github.com/zebreus/s16e";
+Add new features at: https://github.com/zebreus/s16e\n";
 
 void printHelp(WiFiClient* client) {
   clientPrintln(client, (char*)help);
@@ -234,6 +254,30 @@ void printColorAt(WiFiClient* client, unsigned char x, unsigned char y) {
   }
 }
 
+// This gets buggy sometimes
+void rotate(unsigned char x, unsigned char y){
+    // TODO: Make this more efficient
+    for (int ii = 0; ii<(x % WIDTH); ii++){
+    for (int row = 0; row < HEIGHT; row++){
+//      char first = allData[col] >> 1 | allData[(col+1) % WIDTH] << 7;
+      char last = (allData[row][0] >> 1) | (allData[row][(WIDTH/8) - 1] <<7);
+      for (int col = (WIDTH/8) - 1; col > 0; col--){
+        allData[row][col] = (allData[row][col] >> 1) | (allData[row][(col - 1)] <<7);
+      }
+      allData[row][0] = last;
+  }}
+
+  // TODO: Make this more efficient
+  for (size_t ii = 0; ii < (y % HEIGHT); ii++){
+  char tmpRow[WIDTH/8];
+  memcpy(tmpRow, allData[(1) % HEIGHT], WIDTH/8);
+  for (size_t i = 1; i < HEIGHT; i++){
+    memcpy(allData[i], allData[(i + 1) % HEIGHT], WIDTH/8);
+  }
+  memcpy(allData[0], tmpRow, WIDTH/8);
+  }
+}
+
 bool wagenHaltOn = false;
 unsigned long long wagenHaltTurnedOnAt = 0;
 
@@ -255,7 +299,7 @@ void stepState(State& state, unsigned char c, WiFiClient* client) {
           clientPrintln(client, 
           "Type 'HELP' for help");
           }
-        state.state = c == 'P' ? STATE_P : c == 'S' ? STATE_S : c == 'W' ? STATE_W : c == 'H' ? STATE_H : c == 'T' ? STATE_T : c == 'D' ? STATE_D : STATE_IDLE;
+        state.state = c == 'P' ? STATE_P : c == 'S' ? STATE_S : c == 'W' ? STATE_W : c == 'H' ? STATE_H : c == 'T' ? STATE_T : c == 'D' ? STATE_D : c == 'R' ? STATE_R : STATE_IDLE;
       }
       break;
     case STATE_P: {
@@ -385,12 +429,22 @@ void stepState(State& state, unsigned char c, WiFiClient* client) {
         if (!cIsHex) {
           if (c == '\n') {
             bool display = false;
-            if (state.asciiColorIndex == 1 && (state.red == 0xf0u)) {
+            if (state.asciiColorIndex == 1  ) {
               display = true;
+            
+              if (state.red == 0xf0u) {
+              
               state.red = 0xffu;
               state.green = 0xffu;
               state.blue = 0xffu;
               state.alpha = 0xffu;
+              } else {
+                 state.red = 0x00u;
+              state.green = 0x00u;
+              state.blue = 0x00u;
+              state.alpha = 0x00u;
+                }
+              
             }
             if (state.asciiColorIndex == 6) {
               display = true;
@@ -450,7 +504,7 @@ void stepState(State& state, unsigned char c, WiFiClient* client) {
     // SP: Full update binary
     case STATE_S: {
         state.spIndex = 0;
-        state.state = c == 'P' ? STATE_SP : c == 'I' ? STATE_SI :  c == 'T' ? STATE_ST : STATE_IDLE;
+        state.state = c == 'P' ? STATE_SP : c == 'I' ? STATE_SI :  c == 'T' ? STATE_ST : c == 'L' ? STATE_SL : STATE_IDLE;
       }
       break;
     case STATE_SP: {
@@ -576,7 +630,7 @@ void stepState(State& state, unsigned char c, WiFiClient* client) {
       
     // TXT:
     case STATE_T: {
-        state.state = c == 'X' ? STATE_TX : STATE_IDLE;
+        state.state = c == 'X' ? STATE_TX : c == 'I' ? STATE_TI : STATE_IDLE;
       }
       break;
     case STATE_TX: {
@@ -601,9 +655,68 @@ void stepState(State& state, unsigned char c, WiFiClient* client) {
          
       }
       break;
+    // ROT:
+    case STATE_R: {
+        state.state = c == 'O' ? STATE_RO : STATE_IDLE;
+      }
+      break;
+    case STATE_RO: {
+        state.state = c == 'T' ? STATE_ROT : STATE_IDLE;
+      }
+      break;
+
+    // PB: Binary
+    case STATE_ROT: {
+        state.nextX = c;
+        state.state = STATE_ROT_X;
+      }
+      break;
+    case STATE_ROT_X: {
+        state.nextY = c;
+        state.state = STATE_ROT_Y;
+      }
+      break;
+     case STATE_ROT_Y: {
+        if (c == '\n'){
+          rotate(state.nextX, state.nextY);
+        }
+        state.state = STATE_IDLE;
+      }
+      break;
 
     default:
       state.state = STATE_IDLE;
+    // TI: Print the current time
+    case STATE_TI: {
+      if (c == '\n'){
+        sprintf(state.sendingBuffer, "%d\n", millis());
+        state.sendingText = (char*)state.sendingBuffer;
+        state.charactersLeft = strlen(state.sendingBuffer);
+      }
+      state.state = STATE_IDLE;
+     }
+     break;
+
+    // SL: Wait with processing further commands until the given time
+    case STATE_SL: {
+      if (c == ' '){
+        state.sleepUntil = 0;
+        break;
+      }
+      if (c == '\n'){
+        state.state = STATE_IDLE;
+        state.sleep = true;
+        break;
+      }
+        unsigned char number = c - 48;
+        if (number >= 10) {
+          state.state = STATE_IDLE;
+        } else {
+          state.sleepUntil = number + state.sleepUntil * 10;
+        }
+      
+     }
+     break;
   }
 
 
@@ -814,14 +927,24 @@ vTaskSuspendAll();
   }
 }
 
-constexpr size_t MAX_CHARS_PER_PIXEL = 10 + 120;
+constexpr size_t MAX_CHARS_PER_PIXEL = 30
+;
+
+bool isStateSleeping(State& state) {
+      if (state.sleep && state.sleepUntil < millis()) {
+        state.sleep =  false;
+      }
+      return state.sleep;
+}
 
 void serialStep() {
   unsigned int charsRemaining = MAX_CHARS_PER_PIXEL;
+  if (!isStateSleeping(serialState)){
   while (Serial.available() && charsRemaining > 0) {
     charsRemaining -= 1;
     unsigned char c = Serial.read();
     stepState(serialState, c, nullptr);
+  }
   }
   if (serialState.sendingText != nullptr) {
   unsigned int sendChars = MAX_CHARS_PER_PIXEL;
@@ -848,9 +971,12 @@ void networkStep() {
   // Add new client if available
   for (size_t index = 0 ; index < MAX_CLIENTS ; index++) {
     auto client = clients[index];
+    
+
+    auto& state = clientStates[index];
 
     auto availableBytes = client.available();
-    if (availableBytes) {
+    if (availableBytes && !isStateSleeping(state)) {
 
     auto readBytes  = 0;
     while (readBytes < availableBytes && readBytes < MAX_CHARS_PER_PIXEL) {
@@ -861,8 +987,6 @@ void networkStep() {
     }
     }
 
-    auto& state = clientStates[index];
-
       if (state.sendingText != nullptr) {
   unsigned int sendChars = MAX_CHARS_PER_PIXEL;
   if (state.charactersLeft < sendChars ){
@@ -872,7 +996,7 @@ void networkStep() {
     char buffer[MAX_CHARS_PER_PIXEL + 1];
     memcpy(buffer, state.sendingText, sendChars);
     buffer[sendChars] = 0;
-    client.println((char*)buffer);
+    client.print((char*)buffer);
     client.flush();
   }
 //  for (size_t i = 0; i < sendChars; i++) {
@@ -885,7 +1009,7 @@ void networkStep() {
     state.sendingText = nullptr;
   }
  
-    }
+  }
 
     //client.flush();
   }
@@ -946,8 +1070,8 @@ WiFi.useStaticBuffers(true);
 
   bool connected = false;
   const char* ssid = "Homeautomation";
-  #error Insert the WiFi password in the next line (and comment this line)
-  const char* password = "INSERT_HERE";
+//  #error Insert the WiFi password in the next line (and comment this line)
+  const char* password = "AutomationIsMagic";
   for (int i = 0; i < n; ++i) {
 
     if (WiFi.SSID(i) == ssid) {
