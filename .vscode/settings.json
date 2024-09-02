@@ -1,0 +1,6 @@
+{
+    "clangd.arguments": [
+        "-query-driver=*/riscv32-esp-elf-g++",
+        "--enable-config"
+    ]
+}
