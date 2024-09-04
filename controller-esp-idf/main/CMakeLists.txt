@@ -2,6 +2,7 @@ idf_component_register(SRCS
 "display/setup.cpp"
 "helpers.cpp"
 "state/setup.cpp"
+"state/State.cpp"
 "networking/server.cpp"
 "networking/setup.cpp"
 "networking/ClientConnection.cpp"

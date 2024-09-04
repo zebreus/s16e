@@ -15,38 +15,10 @@
 #include "sdkconfig.h"
 #include <cassert>
 #include <cstring>
-#include <stdio.h>
-#include <string.h>
 
-void statePrint(State &state, const char *text, size_t length) {
-  if (length == -1) {
-    length = strlen(text);
-  }
-  // char buf[1000];
-  // memcpy(buf, text, length);
-  // buf[length] = 0;
-  state.sendingBuffer.write(std::span(text, length));
-}
-void statePrint(State &state, const char *text) { statePrint(state, text, -1); }
-void statePrint(State &state, int number) {
-  char a[100];
-  auto length = sprintf(a, "%d", number);
-  statePrint(state, a, length + 1);
-}
-void statePrintln(State &state, const char *text, size_t length) {
-  statePrint(state, text, length);
-  statePrint(state, "\n", 1);
-}
-void statePrintln(State &state, const char *text) {
-  statePrintln(state, text, -1);
-}
-void statePrintln(State &state, int number) {
-  statePrint(state, number);
-  statePrint(state, "\n", 1);
-}
-
-const char help[] =
-    "This display supports the common pixelflut commands and some own commands:\n\
+void printHelp(State &state) {
+  constexpr char help[] =
+      "This display supports the common pixelflut commands and some own commands:\n\
 Pixelflut commands:\n\
   HELP: Print this help message\n\
   SIZE: Returns the size of the visible canvas in pixel as SIZE <w> <h>\n\
@@ -70,29 +42,34 @@ Fancy commands (binary and untested) \n\
 \n\
 Add new features at: https://github.com/zebreus/s16e\n";
 
-static_assert((sizeof(help) < SEND_QUEUE_SIZE),
-              "Error: Send queue is not big enough to fit the help text");
-
-void printHelp(State &state) {
-  // TODO: implement
-  //   statePrintln(state, (char *)help);
+  static_assert((sizeof(help) < SEND_QUEUE_SIZE),
+                "Error: Send queue is not big enough to fit the help text");
+  state.print({help, sizeof(help)});
 }
 
 void printColorAt(State &state, unsigned char x, unsigned char y) {
   // TODO: implement
-  //   unsigned char value = allData[y][(x / 8)];
-  //   auto relevantValue = value & ((1 << (7 - (x % 8))));
-  //   bool active = relevantValue != 0;
+  unsigned char value = allData[y][(x / 8)];
+  auto relevantValue = value & ((1 << (7 - (x % 8))));
+  bool active = relevantValue != 0;
 
-  //   statePrint(state, "PX ");
-  //   statePrint(state, x);
-  //   statePrint(state, " ");
-  //   statePrint(state, y);
-  //   if (active) {
-  //     statePrintln(state, " ffffff");
-  //   } else {
-  //     statePrintln(state, " 000000");
-  //   }
+  state.printf(100, "PX %i %i %s\n", x, y, active ? "ffffff" : "000000");
+}
+
+void printStats(State &state) {
+  state.printf(400,
+               "px: %llu\n"
+               "up: %llu\n"
+               "conn: %i\n"
+               "max_conn: %llu\n"
+               "haltezeit: %llu\n"
+               "toggled: %llu\n"
+               "cpu: %s\n",
+               stats.pixelsDrawn, getTime(), stats.currentConnections,
+               stats.maxConnections,
+               stats.wagenHaltOnMillis +
+                   (wagenHaltOn ? (getTime() - wagenHaltTurnedOnAt) : 0),
+               stats.wagenHaltToggled, (const char *)CONFIG_IDF_TARGET);
 }
 
 bool wagenHaltOn = false;
@@ -104,7 +81,7 @@ void stepState(State &state, unsigned char c) {
   switch (state.state) {
   case STATE_IDLE: {
     if (c == '\n') {
-      statePrintln(state, "Type 'HELP' for help");
+      state.print("Type 'HELP' for help\n");
     }
     state.state = c == 'P'   ? STATE_P
                   : c == 'S' ? STATE_S
@@ -360,10 +337,7 @@ void stepState(State &state, unsigned char c) {
   } break;
   case STATE_SIZE: {
     if (c == '\n') {
-      statePrint(state, (const char *)"SIZE ");
-      statePrint(state, WIDTH);
-      statePrint(state, " ");
-      statePrintln(state, HEIGHT);
+      state.printf(100, "SIZE %i %i\n", WIDTH, HEIGHT);
     }
     state.state = STATE_IDLE;
   } break;
@@ -380,7 +354,7 @@ void stepState(State &state, unsigned char c) {
   } break;
   case STATE_HELP: {
     if (c == '\n') {
-      statePrint(state, help, sizeof(help));
+      printHelp(state);
     }
     state.state = STATE_IDLE;
   } break;
@@ -397,30 +371,9 @@ void stepState(State &state, unsigned char c) {
   } break;
   case STATE_STATS: {
     if (c == '\n') {
-      struct Stats {
-        unsigned long long pixelsDrawn = 0;
-        unsigned long long wagenHaltToggled = 0;
-        unsigned long long wagenHaltOnMillis = 0;
-        unsigned long long maxConnections = 0;
-        unsigned long long currentConnections = 0;
-      };
-      statePrint(state, "px:");
-      statePrintln(state, stats.pixelsDrawn);
-      statePrint(state, "up:");
-      statePrintln(state, getTime());
-      statePrint(state, "conn:");
-      statePrintln(state, stats.currentConnections);
-      statePrint(state, "max_conn:");
-      statePrintln(state, stats.maxConnections);
-      statePrint(state, "haltezeit:");
-      statePrintln(state,
-                   stats.wagenHaltOnMillis +
-                       (wagenHaltOn ? (getTime() - wagenHaltTurnedOnAt) : 0));
-      statePrint(state, "toggled:");
-      statePrintln(state, stats.wagenHaltToggled);
-      statePrint(state, "cpu:");
-      statePrintln(state, CONFIG_IDF_TARGET);
+      printStats(state);
     }
+
     state.state = STATE_IDLE;
   } break;
 
@@ -474,10 +427,7 @@ void stepState(State &state, unsigned char c) {
   // TI: Print the current time
   case STATE_TI: {
     if (c == '\n') {
-      char timeBuffer[100] = {0};
-
-      sprintf(timeBuffer, "%llu\n", getTime());
-      statePrintln(state, (const char *)timeBuffer);
+      state.printf(50, "%llu\n", getTime());
     }
     state.state = STATE_IDLE;
   } break;
