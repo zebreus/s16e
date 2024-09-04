@@ -39,9 +39,8 @@ extern "C" void app_main(void) {
   ESP_LOGI("main", "%s", message);
 
   while (true) {
-    // //   // processWifi();
-    vTaskDelay(10 / portTICK_PERIOD_MS);
-    processNetworkEvents();
+    // vTaskDelay(10 / portTICK_PERIOD_MS);
     displayFrame();
+    processNetworkEvents();
   }
 }
