@@ -7,5 +7,5 @@ idf_component_register(SRCS
 "networking/ClientConnection.cpp"
 "networking/SocketWrapper.cpp"
 "stats.cpp"
-"hello_world_main.cpp"
+"main.cpp"
                     INCLUDE_DIRS "")
