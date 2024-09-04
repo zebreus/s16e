@@ -31,25 +31,24 @@
         name = "s16e";
 
         devShell = pkgs.mkShellNoCC {
-          # CPATH = pkgs.lib.makeSearchPathOutput "dev" "include" buildInputs;
-
           buildInputs = [
             pkgs.esp-idf-esp32c3
-            "/nix/store/i6zxjr9akhs8s3qhqpzy3zf31i2jwrmq-riscv32-esp-elf-esp-idf-v5.3/riscv32-esp-elf"
-            "/nix/store/i6zxjr9akhs8s3qhqpzy3zf31i2jwrmq-riscv32-esp-elf-esp-idf-v5.3/lib/gcc/riscv32-esp-elf/13.2.0"
             (pkgs.clang-tools.override { enableLibcxx = false; })
             pkgs.glibc_multi.dev
           ];
 
           shellHook = ''
-            cat <<EOF > controller-esp-idf/hello_world/.clangd
+            RISCV_COMPILER=$(which riscv32-esp-elf-g++)
+            RISCV_COMPILER_DIR=$(dirname $(dirname $RISCV_COMPILER))
+            cat <<EOF > controller-esp-idf/.clangd
             CompileFlags:
               Add: [
                 -I${pkgs.esp-idf-esp32c3}/include,
-                -I${"/nix/store/i6zxjr9akhs8s3qhqpzy3zf31i2jwrmq-riscv32-esp-elf-esp-idf-v5.3/riscv32-esp-elf"}/include,
-                -I${"/nix/store/i6zxjr9akhs8s3qhqpzy3zf31i2jwrmq-riscv32-esp-elf-esp-idf-v5.3/lib/gcc/riscv32-esp-elf/13.2.0"}/include,
+                -I$RISCV_COMPILER_DIR/riscv32-esp-elf/include,
+                -I$RISCV_COMPILER_DIR/lib/gcc/riscv32-esp-elf/13.2.0/include,
                 -I${pkgs.glibc_multi.dev}/include ]
-              Compiler: /nix/store/i6zxjr9akhs8s3qhqpzy3zf31i2jwrmq-riscv32-esp-elf-esp-idf-v5.3/bin/riscv32-esp-elf-g++
+              Remove: [ -fstrict-volatile-bitfields, -fno-tree-switch-conversion ]
+              Compiler: $RISCV_COMPILER
             EOF
           '';
         };
