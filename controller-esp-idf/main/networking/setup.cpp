@@ -1,6 +1,7 @@
 #include "../config.hpp"
 #include "esp_event.h"
 #include "esp_log.h"
+#include "esp_netif_types.h"
 #include "esp_wifi.h"
 #include "freertos/event_groups.h"
 #include "freertos/task.h"
@@ -26,12 +27,27 @@ static void eventHandler(void *arg, esp_event_base_t event_base,
   }
 }
 
+esp_netif_t *wifiStationInterface;
+esp_netif_t *wifiAPInterface;
+
+const char *getOwnIp() {
+  static char ownIpBuffer[50];
+  esp_netif_ip_info_t ip_info;
+  if (wifiStationInterface) {
+    if (esp_netif_is_netif_up(wifiStationInterface)) {
+      esp_netif_get_ip_info(wifiStationInterface, &ip_info);
+      snprintf(ownIpBuffer, 49, IPSTR, IP2STR(&ip_info.ip));
+    }
+  }
+  return ownIpBuffer;
+}
+
 void setupWifi() {
   ESP_ERROR_CHECK(esp_netif_init());
   wifi_event_group = xEventGroupCreate();
   ESP_ERROR_CHECK(esp_event_loop_create_default());
-  esp_netif_create_default_wifi_ap();
-  esp_netif_create_default_wifi_sta();
+  wifiAPInterface = esp_netif_create_default_wifi_ap();
+  wifiStationInterface = esp_netif_create_default_wifi_sta();
 
   wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
   ESP_ERROR_CHECK(esp_wifi_init(&cfg));
