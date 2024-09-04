@@ -15,8 +15,6 @@ private:
 
   std::array<char, RECEIVE_BYTES_PER_FRAME> inputBuffer;
   size_t inputBufferLength = 0;
-  std::array<char, SEND_QUEUE_SIZE> outputBuffer;
-  size_t outputBufferLength = 0;
 
 public:
   // Accept an incoming connection on the serversocket.

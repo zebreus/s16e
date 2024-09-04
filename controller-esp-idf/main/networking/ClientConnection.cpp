@@ -57,24 +57,7 @@ void ClientConnection::receiveFrame() {
 
   this->inputBufferLength += result;
 }
-// Send the data for the current frame
-void ClientConnection::sendFrame() {
-  size_t maxSendBytes = outputBufferLength > SEND_BYTES_PER_FRAME
-                            ? SEND_BYTES_PER_FRAME
-                            : outputBufferLength;
-  if (maxSendBytes == 0) {
-    return;
-  }
-  size_t sendBytes = send(socket->getSocket(), outputBuffer.data(),
-                          maxSendBytes, MSG_DONTWAIT);
 
-  // Shift the output buffer by the number of actually send bytes
-  outputBufferLength = outputBufferLength - sendBytes;
-  for (int i = 0; i < outputBufferLength; i++) {
-    outputBuffer[i] = outputBuffer[i + sendBytes];
-  }
-  ESP_LOGE(NETWORKING_LOG_TAG, "Responded with %i bytes", sendBytes);
-}
 pollfd ClientConnection::getPollFd() {
   pollfd result;
 
@@ -87,19 +70,11 @@ pollfd ClientConnection::getPollFd() {
 }
 
 // Send some data
-int ClientConnection::sendBuffer(std::span<char> &buffer) {
-  size_t queueSizeAfterwards =
-      (outputBufferLength + buffer.size_bytes()) > SEND_QUEUE_SIZE
-          ? SEND_QUEUE_SIZE
-          : (outputBufferLength + buffer.size_bytes());
-  size_t writeBytes = queueSizeAfterwards - outputBufferLength;
-  memcpy(outputBuffer.data() + outputBufferLength, buffer.data(), writeBytes);
-  outputBufferLength += writeBytes;
-  return writeBytes;
-}
-
-// Send some data
 void ClientConnection::sendFromRingBuffer(RingBuffer<SEND_QUEUE_SIZE> &buffer) {
+  if (socket->getSocket() == -1) {
+    // No connection
+    return;
+  }
   auto sendBuffers = buffer.read(SEND_BYTES_PER_FRAME);
 
   if (!sendBuffers.has_value()) {
