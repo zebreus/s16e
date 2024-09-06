@@ -43,6 +43,7 @@ constexpr char own_ssid[32] = "Strassenbahnanzeige";
 
 constexpr const char *NETWORKING_LOG_TAG = "networking";
 constexpr const char *RINGBUFFER_LOG_TAG = "ringbuffer";
+constexpr const char *LUA_SCRIPTING_LOG_TAG = "lua";
 
 constexpr size_t MAX_CLIENTS = 2;
 // The max number of bytes that the server will receive per client per frame
@@ -56,3 +57,7 @@ constexpr unsigned short PORT = 23;
 constexpr int KEEPALIVE_IDLE = 5000;
 constexpr int KEEPALIVE_INTERVAL = 5000;
 constexpr int KEEPALIVE_COUNT = 1;
+
+// #### LUA configuration
+
+constexpr int LUA_MAX_INSTRUCTIONS_PER_FRAME = 5000;
