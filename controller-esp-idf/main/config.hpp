@@ -45,7 +45,7 @@ constexpr const char *NETWORKING_LOG_TAG = "networking";
 constexpr const char *RINGBUFFER_LOG_TAG = "ringbuffer";
 constexpr const char *LUA_SCRIPTING_LOG_TAG = "lua";
 
-constexpr size_t MAX_CLIENTS = 2;
+constexpr size_t MAX_CLIENTS = 20;
 // The max number of bytes that the server will receive per client per frame
 constexpr size_t RECEIVE_BYTES_PER_FRAME = 130;
 // The max number of bytes that the server will send to a client per frame
@@ -60,4 +60,5 @@ constexpr int KEEPALIVE_COUNT = 1;
 
 // #### LUA configuration
 
+constexpr int LUA_MAX_SCRIPT_LENGTH = 512;
 constexpr int LUA_MAX_INSTRUCTIONS_PER_FRAME = 5000;

@@ -2,6 +2,7 @@
 
 #include "../RingBuffer.hpp"
 #include "../config.hpp"
+#include "Script.hpp"
 #include <cstdarg>
 #include <cstddef>
 #include <cstdio>
@@ -50,6 +51,11 @@
 #define STATE_TI 41
 #define STATE_SL 42
 #define STATE_SL_NUM 42
+#define STATE_L 43
+#define STATE_LU 44
+#define STATE_LUA 45
+#define STATE_SO 46
+#define STATE_SOL 47
 
 struct State {
   unsigned char state = STATE_IDLE;
@@ -70,6 +76,15 @@ struct State {
   unsigned int sleepUntil = 0;
   bool sleep = false;
 
+  // Script
+  std::optional<Script> luaScript;
+  std::array<char, LUA_MAX_SCRIPT_LENGTH + 1> luaScriptContent;
+  size_t luaScriptContentLength = 0;
+  size_t luaEndSequenceProgress = 0;
+
   int print(const std::span<const char> &text);
   int printf(size_t maxLength, const char *format, ...);
+
+  // This function will be called between frames by the main loop
+  void processScripts();
 };

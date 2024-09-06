@@ -20,3 +20,9 @@ int State::printf(size_t maxLength, const char *format, ...) {
 
   return print({staticBuffer, (size_t)length});
 }
+
+void State::processScripts() {
+  if (luaScript.has_value()) {
+    luaScript->executeScript();
+  }
+}

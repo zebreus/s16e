@@ -1,3 +1,5 @@
+#pragma once
+
 #include "../config.hpp"
 #include "esp_log.h"
 #include <freertos/FreeRTOS.h>
@@ -11,8 +13,10 @@
 
 extern "C" void luaHook(lua_State *L, lua_Debug *ar);
 
+struct State;
+
 class Script {
-  lua_State *stack;
+  lua_State *stack = nullptr;
 
   void initStack();
 
@@ -26,4 +30,5 @@ public:
 
   void loadScript(const char *program);
   void executeScript();
+  void setOutput(State &outputState);
 };

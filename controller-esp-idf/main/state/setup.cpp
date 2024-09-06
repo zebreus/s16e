@@ -9,12 +9,14 @@
 #include "../helpers.hpp"
 #include "../state/setup.hpp"
 #include "../stats.hpp"
+#include "State.hpp"
 #include "driver/gpio.h"
 #include "freertos/event_groups.h"
 #include "freertos/task.h"
 #include "sdkconfig.h"
 #include <cassert>
 #include <cstring>
+#include <optional>
 
 void printHelp(State &state) {
   constexpr char help[] =
@@ -39,6 +41,8 @@ Fancy commands (binary and untested) \n\
   ROT<x><y>: Rotate the buffer by <x> and <y>. <x> and <y> are one byte binary numbers\n\
   TI: Get the current time in millis as ascii string\n\
   SL <until>: Pause processing all further commands, until time is reached. Until is a time in millis as ascii string.\n\
+  LUA <script>: Reads a lua script that will be executed every frame until the connection is closed. <script> is read until 512 bytes are read or until the string 'AUL' followed by a newline is send\n\
+  SOL: Remove the current lua script. Does nothing if no script is loaded. \n\
 \n\
 Add new features at: https://github.com/zebreus/s16e\n";
 
@@ -90,6 +94,7 @@ void stepState(State &state, unsigned char c) {
                   : c == 'T' ? STATE_T
                   : c == 'D' ? STATE_D
                   : c == 'R' ? STATE_R
+                  : c == 'L' ? STATE_L
                              : STATE_IDLE;
   } break;
   case STATE_P: {
@@ -290,6 +295,7 @@ void stepState(State &state, unsigned char c) {
                   : c == 'I' ? STATE_SI
                   : c == 'T' ? STATE_ST
                   : c == 'L' ? STATE_SL
+                  : c == 'O' ? STATE_SO
                              : STATE_IDLE;
   } break;
   case STATE_SP: {
@@ -450,6 +456,72 @@ void stepState(State &state, unsigned char c) {
       state.sleepUntil = number + state.sleepUntil * 10;
     }
 
+  } break;
+    // LUA:
+  case STATE_L: {
+    state.state = c == 'U' ? STATE_LU : STATE_IDLE;
+  } break;
+  case STATE_LU: {
+    if (c != 'A') {
+      state.state = STATE_IDLE;
+      break;
+    }
+    state.state = STATE_LUA;
+    state.luaScriptContent = {0};
+    state.luaScriptContentLength = 0;
+    state.luaEndSequenceProgress = 0;
+  } break;
+  case STATE_LUA: {
+    // Allow a bit extra to handle trailing UAL\n. The extra bytes will be
+    // removed later
+    if (state.luaScriptContentLength < LUA_MAX_SCRIPT_LENGTH) {
+      state.luaScriptContent[state.luaScriptContentLength++] = c;
+    } else {
+      // Create
+      state.state = STATE_IDLE;
+    }
+    if (state.luaScriptContentLength >= 4 &&
+        state.luaScriptContent[state.luaScriptContentLength - 4] == 'U' &&
+        state.luaScriptContent[state.luaScriptContentLength - 3] == 'A' &&
+        state.luaScriptContent[state.luaScriptContentLength - 2] == 'L' &&
+        state.luaScriptContent[state.luaScriptContentLength - 1] == '\n') {
+      state.luaScriptContentLength -= 4;
+      state.state = STATE_IDLE;
+    }
+    if (state.state == STATE_IDLE) {
+      if (state.luaScriptContentLength == LUA_MAX_SCRIPT_LENGTH &&
+          state.luaScriptContent[state.luaScriptContentLength - 3] == 'U' &&
+          state.luaScriptContent[state.luaScriptContentLength - 2] == 'A' &&
+          state.luaScriptContent[state.luaScriptContentLength - 1] == 'L') {
+        state.luaScriptContentLength -= 3;
+      }
+      if (state.luaScriptContentLength == LUA_MAX_SCRIPT_LENGTH &&
+          state.luaScriptContent[state.luaScriptContentLength - 2] == 'U' &&
+          state.luaScriptContent[state.luaScriptContentLength - 1] == 'A') {
+        state.luaScriptContentLength -= 2;
+      }
+      if (state.luaScriptContentLength == LUA_MAX_SCRIPT_LENGTH &&
+          state.luaScriptContent[state.luaScriptContentLength - 1] == 'U') {
+        state.luaScriptContentLength -= 1;
+      }
+
+      state.luaScriptContent[state.luaScriptContentLength] = 0;
+      if (!state.luaScript.has_value()) {
+        state.luaScript.emplace();
+        state.luaScript->setOutput(state);
+      }
+      state.luaScript->loadScript(state.luaScriptContent.data());
+    }
+  } break;
+  case STATE_SO: {
+    state.state = c == 'L' ? STATE_SOL : STATE_IDLE;
+  } break;
+  case STATE_SOL: {
+    state.state = STATE_IDLE;
+    if (c != '\n') {
+      break;
+    }
+    state.luaScript.reset();
   } break;
   default:
     state.state = STATE_IDLE;

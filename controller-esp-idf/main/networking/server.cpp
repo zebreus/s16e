@@ -132,6 +132,12 @@ void processNetworkEvents() {
   }
 
   for (auto clientId = 0; clientId < MAX_CLIENTS; clientId++) {
+    if (clients[clientId].active()) {
+      states[clientId].processScripts();
+    }
+  }
+
+  for (auto clientId = 0; clientId < MAX_CLIENTS; clientId++) {
     clients[clientId].sendFromRingBuffer(states[clientId].sendingBuffer);
   }
 }
