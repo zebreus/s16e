@@ -5,6 +5,7 @@
 // #include "octafont-bold.h"
 #include "setup.hpp"
 #include "../config.hpp"
+#include "../display/Display.hpp"
 #include "../display/setup.hpp"
 #include "../helpers.hpp"
 #include "../state/setup.hpp"
@@ -53,11 +54,9 @@ Add new features at: https://github.com/zebreus/s16e\n";
 
 void printColorAt(State &state, unsigned char x, unsigned char y) {
   // TODO: implement
-  unsigned char value = allData[y][(x / 8)];
-  auto relevantValue = value & ((1 << (7 - (x % 8))));
-  bool active = relevantValue != 0;
+  unsigned char value = display.getPixel(x, y);
 
-  state.printf(100, "PX %i %i %s\n", x, y, active ? "ffffff" : "000000");
+  state.printf(100, "PX %i %i %02x%02x%02xff\n", x, y, value, value, value);
 }
 
 void printStats(State &state) {
@@ -111,17 +110,8 @@ void stepState(State &state, unsigned char c) {
     state.state = state.nextY < HEIGHT ? STATE_Y : STATE_IDLE;
   } break;
   case STATE_Y: {
-    unsigned char oldValue = allData[state.nextY][(state.nextX / 8)];
-    unsigned char value = (c == 0 || c == '0') ? 0 : 1;
-    //        allData[state.nextY % HEIGHT][state.nextX % WIDTH] = value;
-    if (value) {
-      allData[state.nextY][(state.nextX / 8)] =
-          oldValue | (1 << (7 - (state.nextX % 8)));
-    } else {
-      allData[state.nextY][(state.nextX / 8)] =
-          oldValue & (~(1 << (7 - (state.nextX % 8))));
-    }
-    stats.pixelsDrawn += 1;
+    unsigned char value = c;
+    display.setPixel(state.nextX, state.nextY, value, 255);
     state.state = STATE_IDLE;
   } break;
 
@@ -214,12 +204,10 @@ void stepState(State &state, unsigned char c) {
     bool cIsHex = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
     if (!cIsHex) {
       if (c == '\n') {
-        bool display = false;
+        bool displayPixel = false;
         if (state.asciiColorIndex == 1) {
-          display = true;
-
+          displayPixel = true;
           if (state.red == 0xf0u) {
-
             state.red = 0xffu;
             state.green = 0xffu;
             state.blue = 0xffu;
@@ -232,23 +220,14 @@ void stepState(State &state, unsigned char c) {
           }
         }
         if (state.asciiColorIndex == 6) {
-          display = true;
+          displayPixel = true;
           state.alpha = 0xffu;
         }
         if (state.asciiColorIndex == 8) {
-          display = true;
+          displayPixel = true;
         }
-        if (display) {
-          unsigned char oldValue = allData[state.nextY][(state.nextX / 8)];
-          if (state.red == 0xffu && state.green == 0xffu &&
-              state.blue == 0xffu && state.alpha == 0xffu) {
-            allData[state.nextY][(state.nextX / 8)] =
-                oldValue | (1 << (7 - (state.nextX % 8)));
-          } else {
-            allData[state.nextY][(state.nextX / 8)] =
-                oldValue & (~(1 << (7 - (state.nextX % 8))));
-          }
-          stats.pixelsDrawn += 1;
+        if (displayPixel) {
+          display.setPixel(state.nextX, state.nextY, state.red, state.alpha);
         }
       }
       state.state = STATE_IDLE;
@@ -299,8 +278,10 @@ void stepState(State &state, unsigned char c) {
                              : STATE_IDLE;
   } break;
   case STATE_SP: {
-    ((unsigned char *)allData)[state.spIndex] = c;
-    stats.pixelsDrawn += 8;
+    state.print("SP is currently not supported, while the datastructure for "
+                "the display is being reworked. Pester zebreus to fix this");
+    // ((unsigned char *)allData)[state.spIndex] = c;
+    // stats.pixelsDrawn += 8;
 
     if (state.spIndex == ((HEIGHT * (WIDTH / 8)) - 1)) {
       state.state = STATE_IDLE;
@@ -481,8 +462,8 @@ void stepState(State &state, unsigned char c) {
       state.state = STATE_IDLE;
     }
     if (state.luaScriptContentLength >= 4 &&
-        state.luaScriptContent[state.luaScriptContentLength - 4] == 'U' &&
-        state.luaScriptContent[state.luaScriptContentLength - 3] == 'A' &&
+        state.luaScriptContent[state.luaScriptContentLength - 4] == 'A' &&
+        state.luaScriptContent[state.luaScriptContentLength - 3] == 'U' &&
         state.luaScriptContent[state.luaScriptContentLength - 2] == 'L' &&
         state.luaScriptContent[state.luaScriptContentLength - 1] == '\n') {
       state.luaScriptContentLength -= 4;
@@ -490,18 +471,18 @@ void stepState(State &state, unsigned char c) {
     }
     if (state.state == STATE_IDLE) {
       if (state.luaScriptContentLength == LUA_MAX_SCRIPT_LENGTH &&
-          state.luaScriptContent[state.luaScriptContentLength - 3] == 'U' &&
-          state.luaScriptContent[state.luaScriptContentLength - 2] == 'A' &&
+          state.luaScriptContent[state.luaScriptContentLength - 3] == 'A' &&
+          state.luaScriptContent[state.luaScriptContentLength - 2] == 'U' &&
           state.luaScriptContent[state.luaScriptContentLength - 1] == 'L') {
         state.luaScriptContentLength -= 3;
       }
       if (state.luaScriptContentLength == LUA_MAX_SCRIPT_LENGTH &&
-          state.luaScriptContent[state.luaScriptContentLength - 2] == 'U' &&
-          state.luaScriptContent[state.luaScriptContentLength - 1] == 'A') {
+          state.luaScriptContent[state.luaScriptContentLength - 2] == 'A' &&
+          state.luaScriptContent[state.luaScriptContentLength - 1] == 'U') {
         state.luaScriptContentLength -= 2;
       }
       if (state.luaScriptContentLength == LUA_MAX_SCRIPT_LENGTH &&
-          state.luaScriptContent[state.luaScriptContentLength - 1] == 'U') {
+          state.luaScriptContent[state.luaScriptContentLength - 1] == 'A') {
         state.luaScriptContentLength -= 1;
       }
 

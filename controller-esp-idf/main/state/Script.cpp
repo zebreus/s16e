@@ -1,4 +1,9 @@
 #include "Script.hpp"
+#include "../display/Display.hpp"
+#include "../display/setup.hpp"
+#include "../stats.hpp"
+#include "lauxlib.h"
+#include "lua.h"
 
 extern "C" void luaHook(lua_State *L, lua_Debug *ar) {
   ESP_LOGE(LUA_SCRIPTING_LOG_TAG, "lua hook triggered");
@@ -9,10 +14,45 @@ extern "C" void luaHook(lua_State *L, lua_Debug *ar) {
   }
 }
 
+// setPixel(x, y, color, transparency)
+extern "C" int setPixel(lua_State *L) {
+  int x = luaL_checkinteger(L, 1);
+  luaL_argcheck(L, x >= 0 && x < 120, 1, "Out of range 0..120");
+  int y = luaL_checkinteger(L, 2);
+  luaL_argcheck(L, y >= 0 && y < 8, 2, "Out of range 0..8");
+  int brightness = luaL_checkinteger(L, 3);
+  luaL_argcheck(L, brightness >= 0 && brightness < 256, 3,
+                "Out of range 0..256");
+  int transparency = luaL_checkinteger(L, 4);
+  luaL_argcheck(L, transparency >= 0 && transparency < 256, 4,
+                "Out of range 0..256");
+
+  display.setPixel(x, y, brightness, transparency);
+
+  return 0;
+}
+
+// setPixel(x, y, color, transparency)
+extern "C" int getPixel(lua_State *L) {
+  int x = luaL_checkinteger(L, 0);
+  luaL_argcheck(L, x >= 0 && x < 120, 1, "Out of range 0..120");
+  int y = luaL_checkinteger(L, 1);
+  luaL_argcheck(L, y >= 0 && y < 8, 2, "Out of range 0..8");
+
+  unsigned char value = display.getPixel(x, y);
+
+  lua_pushinteger(L, value);
+  return 1;
+}
+
 void Script::initStack() {
   if (stack == nullptr) {
     stack = luaL_newstate();
     luaL_openlibs(stack);
+    lua_pushcfunction(stack, setPixel);
+    lua_setglobal(stack, "setPixel");
+    lua_pushcfunction(stack, getPixel);
+    lua_setglobal(stack, "getPixel");
   }
 }
 
@@ -59,7 +99,13 @@ void Script::executeScript() {
   lua_sethook(stack, luaHook, LUA_MASKCOUNT, LUA_MAX_INSTRUCTIONS_PER_FRAME);
   lua_getglobal(stack, "__lua_entrypoint");
   auto status = lua_pcall(stack, 0, 0, 0);
-  ESP_LOGI(LUA_SCRIPTING_LOG_TAG, "Lua pcall returned %i", status);
+  if (status != LUA_OK) {
+    const char *msg = lua_tostring(stack, -1);
+    ESP_LOGI(LUA_SCRIPTING_LOG_TAG, "Lua execution failed: %s", msg);
+    // lua_writestring(msg, strlen(msg));
+    // lua_writeline();
+    lua_pop(stack, 1); /* remove message */
+  }
 }
 
 void Script::setOutput(State &outputState) {

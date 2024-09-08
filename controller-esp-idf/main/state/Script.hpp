@@ -4,7 +4,7 @@
 #include "esp_log.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include <inttypes.h>
+
 #include <lauxlib.h>
 #include <lua.h>
 #include <lualib.h>

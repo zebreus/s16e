@@ -1,3 +1,4 @@
+#include "display/Display.hpp"
 #include "display/setup.hpp"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h" // IWYU pragma: keep
@@ -40,7 +41,7 @@ extern "C" void app_main(void) {
 
   while (true) {
     // vTaskDelay(10 / portTICK_PERIOD_MS);
-    displayFrame();
+    display.show();
     processNetworkEvents();
   }
 }

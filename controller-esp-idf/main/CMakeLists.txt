@@ -1,5 +1,7 @@
 idf_component_register(SRCS
+"display/Display.cpp"
 "display/setup.cpp"
+"display/srgbFunction.cpp"
 "helpers.cpp"
 "state/setup.cpp"
 "state/State.cpp"
