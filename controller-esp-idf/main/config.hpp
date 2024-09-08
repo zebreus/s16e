@@ -7,8 +7,8 @@
 
 constexpr unsigned char WIDTH = 120;
 constexpr unsigned char HEIGHT = 8;
-constexpr int SUBFRAMES = 5;
-constexpr int SUBFRAMES_PER_FRAME = 3;
+constexpr int SUBFRAMES = 8;
+constexpr int SUBFRAMES_PER_FRAME = 8;
 
 // Output enable low active
 // #define OUTPUT_ENABLE ((gpio_num_t)4)

@@ -1,13 +1,12 @@
 #pragma once
 
 #include "../config.hpp"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h" // IWYU pragma: keep
 #include "freertos/event_groups.h"
 #include "freertos/task.h"
 #include "srgbFunction.hpp"
 #include <cstring>
-#include <stdio.h>
-#include <string.h>
 
 class Display {
   unsigned char frameData[HEIGHT][WIDTH];

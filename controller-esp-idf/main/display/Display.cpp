@@ -2,10 +2,14 @@
 #include "../config.hpp"
 #include "../stats.hpp"
 #include "driver/gpio.h"
+#include "driver/timer.h"
+#include "driver/timer_types_legacy.h"
+#include "esp_log.h"
 #include "fonts/octafont-regular.hpp"
 #include "freertos/event_groups.h"
 #include "freertos/task.h"
 #include "hal/gpio_types.h"
+#include "hal/timer_types.h"
 #include <cstring>
 #include <stdio.h>
 #include <string.h>
@@ -17,41 +21,100 @@ void enableOutput() { gpio_set_level(OUTPUT_ENABLE, 0); }
 void disableOutput() { gpio_set_level(OUTPUT_ENABLE, 1); }
 void shiftRowToOutput() { gpio_set_level(REGISTER_CLOCK, 1); }
 void resetShiftRowToOutput() { gpio_set_level(REGISTER_CLOCK, 0); }
-void enableRow(int row) { gpio_set_level(ROW_PINS[(row - 1) % HEIGHT], 0); }
-void disableRow(int row) { gpio_set_level(ROW_PINS[(row - 1) % HEIGHT], 1); }
+void enableRow(int row) {
+  gpio_set_level(ROW_PINS[(row + HEIGHT - 1) % HEIGHT], 0);
+}
+void disableRow(int row) {
+  gpio_set_level(ROW_PINS[(row + HEIGHT - 1) % HEIGHT], 1);
+}
 
-void writeRow(unsigned char (&rowData)[WIDTH], unsigned int threshold) {
-  unsigned char srgbRow[WIDTH];
-  for (unsigned char i = 0; i < WIDTH; i++) {
-    srgbRow[i] = srgbToLinear(rowData[i]);
-  }
+void writeRow(unsigned char (&rowData)[WIDTH], unsigned char bit) {
+  // unsigned char srgbRow[WIDTH];
+  // for (unsigned char i = 0; i < WIDTH; i++) {
+  //   srgbRow[i] = srgbToLinear(rowData[i]);
+  // }
 
   unsigned char bitstream[WIDTH / 8];
   for (unsigned char column = 0; column < WIDTH; column += 8) {
     bitstream[column / 8] =
-        (srgbRow[column + 0] >= threshold ? 0b10000000 : 0) |
-        (srgbRow[column + 1] >= threshold ? 0b01000000 : 0) |
-        (srgbRow[column + 2] >= threshold ? 0b00100000 : 0) |
-        (srgbRow[column + 3] >= threshold ? 0b00010000 : 0) |
-        (srgbRow[column + 4] >= threshold ? 0b00001000 : 0) |
-        (srgbRow[column + 5] >= threshold ? 0b00000100 : 0) |
-        (srgbRow[column + 6] >= threshold ? 0b00000010 : 0) |
-        (srgbRow[column + 7] >= threshold ? 0b00000001 : 0);
+        (rowData[column + 0] & (1 << bit) ? 0b10000000 : 0) |
+        (rowData[column + 1] & (1 << bit) ? 0b01000000 : 0) |
+        (rowData[column + 2] & (1 << bit) ? 0b00100000 : 0) |
+        (rowData[column + 3] & (1 << bit) ? 0b00010000 : 0) |
+        (rowData[column + 4] & (1 << bit) ? 0b00001000 : 0) |
+        (rowData[column + 5] & (1 << bit) ? 0b00000100 : 0) |
+        (rowData[column + 6] & (1 << bit) ? 0b00000010 : 0) |
+        (rowData[column + 7] & (1 << bit) ? 0b00000001 : 0);
   }
   writeChars(bitstream, (WIDTH / 8));
+}
+
+volatile bool triggered;
+static bool IRAM_ATTR timerCallback(void *args) {
+  triggered = true;
+  disableOutput();
+  return true;
+}
+
+void initializeTimer() {
+  static bool initializedTimer = false;
+  if (!initializedTimer) {
+
+    timer_config_t timerConfig{
+        .alarm_en = TIMER_ALARM_EN,
+        .counter_en = TIMER_PAUSE,
+        .intr_type = TIMER_INTR_LEVEL,
+        .counter_dir = TIMER_COUNT_UP,
+        .auto_reload = TIMER_AUTORELOAD_EN,
+        .divider = 2,
+    };
+
+    triggered = false;
+    timer_init(TIMER_GROUP_1, TIMER_0, &timerConfig);
+    // timer_isr_register(TIMER_GROUP_1, TIMER_0, &timerCallback2, NULL, 0,
+    // nullptr);
+    timer_isr_callback_add(TIMER_GROUP_1, TIMER_0, timerCallback, NULL, 0);
+    timer_group_intr_enable(TIMER_GROUP_1, TIMER_INTR_T0);
+    timer_enable_intr(TIMER_GROUP_1, TIMER_0);
+    initializedTimer = true;
+  }
+}
+
+void startTimer(uint64_t duration) {
+  timer_pause(TIMER_GROUP_1, TIMER_0);
+  triggered = false;
+  timer_set_alarm_value(TIMER_GROUP_1, TIMER_0, duration);
+  timer_set_counter_value(TIMER_GROUP_1, TIMER_0, 0);
+  timer_start(TIMER_GROUP_1, TIMER_0);
+  // timer_set_counter_value(TIMER_GROUP_1, TIMER_0, 0);
+}
+
+void waitForTimer() {
+  while (!triggered) {
+    __asm__ __volatile__("nop");
+
+    // ESP_LOGE("toast", "Not triggered");
+  }
+  // ESP_LOGI("toast", "Triggered");
+  timer_pause(TIMER_GROUP_1, TIMER_0);
 }
 
 void Display::show() {
   //   serialStep();
   // networkStep();
+  constexpr size_t BRIGHTNESS_BITS = 6;
+
+  initializeTimer();
 
   vTaskSuspendAll();
-  for (size_t row = 0; row < HEIGHT; row++) {
-    // Switch the previous row on
-    //    taskENTER_CRITICAL(&myMutex);
 
-    // setTurnOffInterrupt((row - 1) % HEIGHT);
-    for (auto i = 0; i < SUBFRAMES_PER_FRAME; i++) {
+  // Why does this work???
+  for (size_t row = 0; row < HEIGHT; row++) {
+    for (auto i = 0; i < BRIGHTNESS_BITS; i++) {
+      // Switch the previous row on
+      //    taskENTER_CRITICAL(&myMutex);
+
+      // setTurnOffInterrupt((row - 1) % HEIGHT);
       // Disable output
       disableOutput();
       // Move to output
@@ -68,17 +131,21 @@ void Display::show() {
         disableRow(row - 1);
         enableRow(row);
       }
-
-      currentSubframe = (currentSubframe + 1) % SUBFRAMES;
-      unsigned char threshold =
-          (int)(255.0 * (currentSubframe + 0.5) / SUBFRAMES);
-
-      writeRow(frameData[row], threshold);
+      int previousI = (i == 0 ? BRIGHTNESS_BITS - 1 : i - 1);
+      size_t timingMultiplier = 1;
+      for (auto b = 0; b < previousI; b++) {
+        timingMultiplier *= 2.8;
+      }
+      startTimer(200 * timingMultiplier);
+      // Why 9
+      writeRow(frameData[row], i + (8 - BRIGHTNESS_BITS));
+      waitForTimer();
     }
-
-    // Push data
-    disableRow(row);
   }
+  disableRow(6);
+  disableRow(7);
+  disableRow(1);
+
   xTaskResumeAll();
 }
 
