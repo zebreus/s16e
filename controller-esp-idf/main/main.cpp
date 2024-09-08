@@ -1,5 +1,4 @@
 #include "display/Display.hpp"
-#include "display/setup.hpp"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h" // IWYU pragma: keep
 #include "freertos/event_groups.h"
@@ -26,7 +25,7 @@ extern "C" void app_main(void) {
   setupDisplay();
   ESP_LOGI("main", "Finished Display setup.");
 
-  drawString("Connecting...", 0);
+  display.drawString("Connecting...", 0, 0);
 
   initializeServer();
 
@@ -36,7 +35,7 @@ extern "C" void app_main(void) {
   char message[101]; // max length you’ll need +1
   auto ownIp = getOwnIp();
   sprintf(message, "nc %s 23", ownIp);
-  drawString(message, 0);
+  display.drawString(message, 0, 0);
   ESP_LOGI("main", "%s", message);
 
   while (true) {

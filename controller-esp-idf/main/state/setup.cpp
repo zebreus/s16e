@@ -6,7 +6,6 @@
 #include "setup.hpp"
 #include "../config.hpp"
 #include "../display/Display.hpp"
-#include "../display/setup.hpp"
 #include "../helpers.hpp"
 #include "../state/setup.hpp"
 #include "../stats.hpp"
@@ -53,7 +52,6 @@ Add new features at: https://github.com/zebreus/s16e\n";
 }
 
 void printColorAt(State &state, unsigned char x, unsigned char y) {
-  // TODO: implement
   unsigned char value = display.getPixel(x, y);
 
   state.printf(100, "PX %i %i %02x%02x%02xff\n", x, y, value, value, value);
@@ -227,7 +225,10 @@ void stepState(State &state, unsigned char c) {
           displayPixel = true;
         }
         if (displayPixel) {
-          display.setPixel(state.nextX, state.nextY, state.red, state.alpha);
+          unsigned char brightness = (unsigned int)((54 * state.red) / 255 +
+                                                    (182 * state.green) / 255 +
+                                                    (19 * state.blue) / 255);
+          display.setPixel(state.nextX, state.nextY, brightness, state.alpha);
         }
       }
       state.state = STATE_IDLE;
@@ -278,10 +279,13 @@ void stepState(State &state, unsigned char c) {
                              : STATE_IDLE;
   } break;
   case STATE_SP: {
-    state.print("SP is currently not supported, while the datastructure for "
-                "the display is being reworked. Pester zebreus to fix this");
-    // ((unsigned char *)allData)[state.spIndex] = c;
-    // stats.pixelsDrawn += 8;
+    for (int i = 0; i < 8; i++) {
+      size_t y = state.spIndex / WIDTH;
+      size_t x = state.spIndex % WIDTH;
+      display.setPixel(x, y, (c & (1 << i)) != 0 ? 255 : 0, 255);
+      state.spIndex += 1;
+    }
+    stats.pixelsDrawn += 8;
 
     if (state.spIndex == ((HEIGHT * (WIDTH / 8)) - 1)) {
       state.state = STATE_IDLE;
@@ -381,9 +385,9 @@ void stepState(State &state, unsigned char c) {
       state.state = STATE_IDLE;
       break;
     }
-    auto width = drawCharacter(c, state.textPosition);
+    auto width = display.drawCharacter(c, state.textPosition, 0);
     state.textPosition += width;
-    drawColumn(0, state.textPosition);
+    display.drawCharacter(' ', state.textPosition, 0);
     state.textPosition += 1;
 
   } break;
@@ -406,7 +410,7 @@ void stepState(State &state, unsigned char c) {
   } break;
   case STATE_ROT_Y: {
     if (c == '\n') {
-      rotate(state.nextX, state.nextY);
+      display.rotate(state.nextX, state.nextY);
     }
     state.state = STATE_IDLE;
   } break;

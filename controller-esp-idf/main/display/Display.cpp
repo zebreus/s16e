@@ -2,15 +2,16 @@
 #include "../config.hpp"
 #include "../stats.hpp"
 #include "driver/gpio.h"
-#include "esp_timer.h"
 #include "fonts/octafont-regular.hpp"
 #include "freertos/event_groups.h"
 #include "freertos/task.h"
 #include "hal/gpio_types.h"
-#include <array>
 #include <cstring>
 #include <stdio.h>
 #include <string.h>
+
+void writeChar(unsigned char data);
+void writeChars(const unsigned char *data, int size);
 
 void enableOutput() { gpio_set_level(OUTPUT_ENABLE, 0); }
 void disableOutput() { gpio_set_level(OUTPUT_ENABLE, 1); }
@@ -37,7 +38,7 @@ void writeRow(unsigned char (&rowData)[WIDTH], unsigned int threshold) {
         (srgbRow[column + 6] >= threshold ? 0b00000010 : 0) |
         (srgbRow[column + 7] >= threshold ? 0b00000001 : 0);
   }
-  writeChars(rowData, (WIDTH / 8));
+  writeChars(bitstream, (WIDTH / 8));
 }
 
 void Display::show() {
@@ -156,6 +157,61 @@ unsigned char Display::getPixel(unsigned char x, unsigned char y) {
   return frameData[y][x];
 }
 
+void Display::drawRow(unsigned char (&rowData)[WIDTH], unsigned char row) {
+  memcpy(frameData[row % HEIGHT], rowData, WIDTH);
+}
+
+void Display::drawColumn(unsigned char (&columnData)[HEIGHT],
+                         unsigned char column) {
+  column = column % WIDTH;
+
+  for (size_t row = 0; row < HEIGHT; row++) {
+    frameData[row][column] = columnData[row];
+  }
+}
+
+// OctafontBold font;
+unsigned char Display::drawCharacter(char character, unsigned char x,
+                                     unsigned char y) {
+  static OctafontRegular font;
+  // return 1;
+  auto width = font.get_width(character);
+  if (width == 255) {
+    character = '?';
+    width = font.get_width(character);
+  }
+  for (auto i = 0; i < width; i++) {
+    auto octet = font.get_octet(character, i);
+    for (auto columnIndex = 0; columnIndex < 8; columnIndex++) {
+      frameData[(y + columnIndex) % HEIGHT][(x + i) % WIDTH] =
+          (octet & (1 << columnIndex)) == 0 ? 0 : 255;
+    }
+  }
+  return width;
+}
+
+void Display::drawString(const char *string, unsigned char x, unsigned char y) {
+  size_t index = 0;
+  while (string[index] != 0) {
+    char thisChar = string[index];
+    auto width = drawCharacter(thisChar, x, y);
+    x += width;
+
+    index += 1;
+    char nextChar = string[index];
+
+    if (!nextChar) {
+      continue;
+    }
+    // if (PixelFont::get_undercut(font, thisChar, font, nextChar)) {
+    //   continue;
+    // }
+    unsigned char emptyColumn[HEIGHT] = {0};
+    drawColumn(emptyColumn, x);
+    x++;
+  }
+}
+
 Display display;
 
 void setupDisplay() {
@@ -209,5 +265,21 @@ void writeChar(unsigned char data) {
     gpio_set_level(SHIFT_REGISTER_CLOCK, 0);
     gpio_set_level(DATA, (data & (1 << index)) ? 1 : 0);
     gpio_set_level(SHIFT_REGISTER_CLOCK, 1);
+  }
+}
+
+// This gets buggy sometimes
+void Display::rotate(unsigned char x, unsigned char y) {
+  static unsigned char temp[HEIGHT][WIDTH];
+  // Shift row data while copying into temp buffer
+  for (int row = 0; row < HEIGHT; row++) {
+    memcpy(temp[row], frameData[row] + (x % WIDTH), WIDTH - (x % WIDTH));
+    memcpy(temp[row] + WIDTH - (x % WIDTH), frameData[row], (x % WIDTH));
+    // std::rotate(frameData[row], frameData[row] + (x % WIDTH),
+    //             frameData[row] + WIDTH - 1);
+  }
+
+  for (size_t i = 0; i < HEIGHT; i++) {
+    memcpy(frameData[(i + y) % HEIGHT], temp[i], WIDTH);
   }
 }

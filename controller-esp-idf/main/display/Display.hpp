@@ -23,11 +23,16 @@ public:
   void show();
   void setPixel(unsigned char x, unsigned char y, unsigned char brightness,
                 unsigned char transparency);
+  void drawColumn(unsigned char (&columnData)[HEIGHT], unsigned char column);
+  void drawRow(unsigned char (&rowData)[WIDTH], unsigned char row);
+  unsigned char drawCharacter(char character, unsigned char x, unsigned char y);
+  void drawString(const char *string, unsigned char x, unsigned char y);
   unsigned char getPixel(unsigned char x, unsigned char y);
+
+  // This gets buggy sometimes
+  void rotate(unsigned char x, unsigned char y);
 };
 
 extern Display display;
 
 void setupDisplay();
-void writeChar(unsigned char data);
-void writeChars(const unsigned char *data, int size);
