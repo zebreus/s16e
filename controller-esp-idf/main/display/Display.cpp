@@ -10,6 +10,7 @@
 #include "freertos/task.h"
 #include "hal/gpio_types.h"
 #include "hal/timer_types.h"
+#include "setup.hpp"
 #include <cstring>
 #include <stdio.h>
 #include <string.h>
@@ -114,6 +115,15 @@ void Display::show() {
       // Switch the previous row on
       //    taskENTER_CRITICAL(&myMutex);
 
+      if (i == 0) {
+        disableRow(row - 2);
+      } else {
+        disableRow(row - 1);
+        if (i == 1) {
+          delayMicroseconds(100);
+        }
+      }
+
       // setTurnOffInterrupt((row - 1) % HEIGHT);
       // Disable output
       disableOutput();
@@ -132,11 +142,16 @@ void Display::show() {
         enableRow(row);
       }
       int previousI = (i == 0 ? BRIGHTNESS_BITS - 1 : i - 1);
-      size_t timingMultiplier = 1;
+      float timingMultiplier = 1;
       for (auto b = 0; b < previousI; b++) {
-        timingMultiplier *= 2.8;
+        timingMultiplier *= 2.5;
+        // if (b == 0) {
+        //   timingMultiplier *= 2;
+        // } else {
+        //   timingMultiplier *= 2.5;
+        // }
       }
-      startTimer(200 * timingMultiplier);
+      startTimer(150.0 * timingMultiplier);
       // Why 9
       writeRow(frameData[row], i + (8 - BRIGHTNESS_BITS));
       waitForTimer();
