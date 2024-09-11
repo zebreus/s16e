@@ -23,10 +23,10 @@ void disableOutput() { gpio_set_level(OUTPUT_ENABLE, 1); }
 void shiftRowToOutput() { gpio_set_level(REGISTER_CLOCK, 1); }
 void resetShiftRowToOutput() { gpio_set_level(REGISTER_CLOCK, 0); }
 void enableRow(int row) {
-  gpio_set_level(ROW_PINS[(row + HEIGHT - 1) % HEIGHT], 0);
+  gpio_set_level(ROW_PINS[(row + HEIGHT) % HEIGHT], 0);
 }
 void disableRow(int row) {
-  gpio_set_level(ROW_PINS[(row + HEIGHT - 1) % HEIGHT], 1);
+  gpio_set_level(ROW_PINS[(row + HEIGHT) % HEIGHT], 1);
 }
 
 void writeRow(unsigned char (&rowData)[WIDTH], unsigned char bit) {
