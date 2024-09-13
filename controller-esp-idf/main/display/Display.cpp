@@ -328,10 +328,10 @@ void setupDisplay() {
 }
 
 Display::Display() {
-  for (int x = 0; x < 120; x++) {
-    frameData[2 + ((x / 120) * 2)][x % 120] =
-        ((unsigned char)((x * 2.5) / 1)) % 256;
-  }
+  // for (int x = 0; x < 120; x++) {
+  //   frameData[2 + ((x / 120) * 2)][x % 120] =
+  //       ((unsigned char)((x * 2.5) / 1)) % 256;
+  // }
   //  setPixel(x % 120, 2 + ((x // 120) * 2), ((x * 2.5) // 1) % 255 , 255)
 }
 
