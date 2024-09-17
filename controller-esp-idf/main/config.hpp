@@ -62,5 +62,5 @@ constexpr int KEEPALIVE_COUNT = 1;
 
 // #### LUA configuration
 
-constexpr int LUA_MAX_SCRIPT_LENGTH = 512;
-constexpr int LUA_MAX_INSTRUCTIONS_PER_FRAME = 5000;
+constexpr int LUA_MAX_SCRIPT_LENGTH = 1024;
+constexpr int LUA_MAX_INSTRUCTIONS_PER_FRAME = 10000;
