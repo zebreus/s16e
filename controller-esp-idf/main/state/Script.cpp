@@ -4,6 +4,7 @@
 #include "../stats.hpp"
 #include "lauxlib.h"
 #include "lua.h"
+#include "setup.hpp"
 
 extern "C" void luaHook(lua_State *L, lua_Debug *ar) {
   ESP_LOGE(LUA_SCRIPTING_LOG_TAG, "lua hook triggered");
@@ -33,6 +34,21 @@ extern "C" int setPixel(lua_State *L) {
 }
 
 // setPixel(x, y, color, transparency)
+extern "C" int luaSetWagenHalt(lua_State *L) {
+  bool newWagenHalt = lua_toboolean(L, 1);
+  setWagenHalt(newWagenHalt);
+
+  return 0;
+}
+
+// setPixel(x, y, color, transparency)
+extern "C" int luaGetWagenHalt(lua_State *L) {
+  lua_pushboolean(L, wagenHaltOn);
+
+  return 1;
+}
+
+// setPixel(x, y, color, transparency)
 extern "C" int getPixel(lua_State *L) {
   int x = luaL_checkinteger(L, 0);
   luaL_argcheck(L, x >= 0 && x < 120, 1, "Out of range 0..120");
@@ -53,6 +69,10 @@ void Script::initStack() {
     lua_setglobal(stack, "setPixel");
     lua_pushcfunction(stack, getPixel);
     lua_setglobal(stack, "getPixel");
+    lua_pushcfunction(stack, luaGetWagenHalt);
+    lua_setglobal(stack, "getWagenHalt");
+    lua_pushcfunction(stack, luaSetWagenHalt);
+    lua_setglobal(stack, "setWagenHalt");
   }
 }
 

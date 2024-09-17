@@ -76,6 +76,20 @@ void printStats(State &state) {
 bool wagenHaltOn = false;
 unsigned long long wagenHaltTurnedOnAt = 0;
 
+void setWagenHalt(bool newWagenHalt) {
+  if (wagenHaltOn != newWagenHalt) {
+    stats.wagenHaltToggled += 1;
+    if (newWagenHalt) {
+      // Turned on
+      wagenHaltTurnedOnAt = getTime();
+    } else {
+      stats.wagenHaltOnMillis += getTime() - wagenHaltTurnedOnAt;
+    }
+  }
+  wagenHaltOn = newWagenHalt;
+  gpio_set_level(WAGEN_HALT, wagenHaltOn ? 1 : 0);
+}
+
 // template <typename F>
 // void stepState(State& state, unsigned char c, F printer) {
 void stepState(State &state, unsigned char c) {
@@ -305,17 +319,7 @@ void stepState(State &state, unsigned char c) {
       c += 32;
     }
     bool newWagenHalt = c == 'f';
-    if (wagenHaltOn != newWagenHalt) {
-      stats.wagenHaltToggled += 1;
-      if (newWagenHalt) {
-        // Turned on
-        wagenHaltTurnedOnAt = getTime();
-      } else {
-        stats.wagenHaltOnMillis += getTime() - wagenHaltTurnedOnAt;
-      }
-    }
-    wagenHaltOn = newWagenHalt;
-    gpio_set_level(WAGEN_HALT, wagenHaltOn ? 1 : 0);
+    setWagenHalt(newWagenHalt);
     state.state = STATE_IDLE;
   } break;
 

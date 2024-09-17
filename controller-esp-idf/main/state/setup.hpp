@@ -13,3 +13,4 @@ void printHelp(State &state);
 void printColorAt(State &state, unsigned char x, unsigned char y);
 void stepState(State &state, unsigned char c);
 bool isStateSleeping(State &state);
+void setWagenHalt(bool newWagenHalt);
