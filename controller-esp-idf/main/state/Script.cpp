@@ -61,18 +61,23 @@ extern "C" int getPixel(lua_State *L) {
   return 1;
 }
 
+lua_State *globalStack = nullptr;
+
 void Script::initStack() {
+  if (globalStack == nullptr) {
+    globalStack = luaL_newstate();
+    luaL_openlibs(globalStack);
+    lua_pushcfunction(globalStack, setPixel);
+    lua_setglobal(globalStack, "setPixel");
+    lua_pushcfunction(globalStack, getPixel);
+    lua_setglobal(globalStack, "getPixel");
+    lua_pushcfunction(globalStack, luaGetWagenHalt);
+    lua_setglobal(globalStack, "getWagenHalt");
+    lua_pushcfunction(globalStack, luaSetWagenHalt);
+    lua_setglobal(globalStack, "setWagenHalt");
+  }
   if (stack == nullptr) {
-    stack = luaL_newstate();
-    luaL_openlibs(stack);
-    lua_pushcfunction(stack, setPixel);
-    lua_setglobal(stack, "setPixel");
-    lua_pushcfunction(stack, getPixel);
-    lua_setglobal(stack, "getPixel");
-    lua_pushcfunction(stack, luaGetWagenHalt);
-    lua_setglobal(stack, "getWagenHalt");
-    lua_pushcfunction(stack, luaSetWagenHalt);
-    lua_setglobal(stack, "setWagenHalt");
+    stack = lua_newthread(globalStack);
   }
 }
 
