@@ -35,7 +35,7 @@ extern "C" void app_main(void) {
 
   char message[101]; // max length you’ll need +1
   auto ownIp = getOwnIp();
-  sprintf(message, "nc %s 23", ownIp);
+  sprintf(message, "nc %s  23", ownIp);
   display.drawString(message, 0, 0);
   ESP_LOGI("main", "%s", message);
 
