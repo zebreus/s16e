@@ -19,7 +19,7 @@ Light up the 'Wagen hält' indicator:
   WH0: Deactivate the 'Wagen halt' indicator
 Print some text:
   TXT <text>: Display text
-  STXT <text>: Display scrolling text (scrolls horizontally at 1 pixel every 50 frames)
+  STXT <text>: Display scrolling text (scrolls horizontally at 1 pixel every 12 frames, supports text wider than screen)
 Shorthands for PX:
   PX <x> <y> 0: Set the pixel at position (x, y) to black
   PX <x> <y> f: Set the pixel at position (x, y) to white

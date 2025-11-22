@@ -75,10 +75,11 @@ struct State {
   // Scrolling text
   bool scrollingEnabled = false;
   unsigned int scrollingCounter = 0;
-  unsigned int scrollingSpeed = 50; // frames between scrolls
+  unsigned int scrollingSpeed = 12; // frames between scrolls (4x faster than original 50)
   std::array<char, 256> scrollingText;
   size_t scrollingTextLength = 0;
   int scrollingTextWidth = 0;
+  int scrollingOffset = 0; // Current scroll position
 
   // Buffer for outgoing data
   RingBuffer<SEND_QUEUE_SIZE> sendingBuffer;
@@ -98,4 +99,7 @@ struct State {
 
   // This function will be called between frames by the main loop
   void processScripts();
+  
+  // Helper to render scrolling text at current offset
+  void renderScrollingText();
 };

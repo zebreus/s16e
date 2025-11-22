@@ -1,11 +1,11 @@
 // #include <WiFi.h>
 // #include <lwip/sockets.h>
 // #include <lwip/netdb.h>
-// #include "octafont-regular.h"
 // #include "octafont-bold.h"
 #include "setup.hpp"
 #include "../config.hpp"
 #include "../display/Display.hpp"
+#include "../display/fonts/octafont-regular.hpp"
 #include "../helpers.hpp"
 #include "../state/setup.hpp"
 #include "../stats.hpp"
@@ -31,7 +31,7 @@ Light up the 'Wagen hält' indicator:\n\
   WH0: Deactivate the 'Wagen halt' indicator\n\
 Print some text:\n\
   TXT <text>: Display text\n\
-  STXT <text>: Display scrolling text\n\
+  STXT <text>: Display scrolling text (4x faster, supports text wider than screen)\n\
 Shorthands for PX:\n\
   PX <x> <y> 0: Set the pixel at position (x, y) to black\n\
   PX <x> <y> f: Set the pixel at position (x, y) to white\n\
@@ -532,24 +532,26 @@ void stepState(State &state, unsigned char c) {
       // Finalize scrolling text setup
       state.scrollingText[state.scrollingTextLength] = 0;
       
-      // Clear the display
-      for (int y = 0; y < HEIGHT; y++) {
-        for (int x = 0; x < WIDTH; x++) {
-          display.setPixel(x, y, 0, 255);
-        }
-      }
-      
-      // Draw the text
+      // Calculate the text width without drawing
       state.textPosition = 0;
       for (size_t i = 0; i < state.scrollingTextLength; i++) {
-        auto width = display.drawCharacter(state.scrollingText[i], state.textPosition, 0);
+        static OctafontRegular font;
+        auto width = font.get_width(state.scrollingText[i]);
+        if (width == 255) {
+          width = font.get_width('?');
+        }
         state.textPosition += width;
-        display.drawCharacter(' ', state.textPosition, 0);
+        // Add space width
         state.textPosition += 1;
       }
       state.scrollingTextWidth = state.textPosition;
+      state.scrollingOffset = 0;
       state.scrollingCounter = 0;
       state.scrollingEnabled = true;
+      
+      // Initial render
+      state.renderScrollingText();
+      
       state.state = STATE_IDLE;
       break;
     }
