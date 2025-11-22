@@ -286,6 +286,7 @@ void stepState(State &state, unsigned char c) {
   // SP: Full update binary
   case STATE_S: {
     state.spIndex = 0;
+    state.scrollingEnabled = false; // Disable scrolling for full screen update
     state.state = c == 'P'   ? STATE_SP
                   : c == 'I' ? STATE_SI
                   : c == 'T' ? STATE_ST
@@ -399,6 +400,7 @@ void stepState(State &state, unsigned char c) {
   } break;
   // ROT:
   case STATE_R: {
+    state.scrollingEnabled = false; // Disable scrolling for manual rotation
     state.state = c == 'O' ? STATE_RO : STATE_IDLE;
   } break;
   case STATE_RO: {
