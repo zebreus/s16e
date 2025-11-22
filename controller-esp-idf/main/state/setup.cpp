@@ -31,6 +31,7 @@ Light up the 'Wagen hält' indicator:\n\
   WH0: Deactivate the 'Wagen halt' indicator\n\
 Print some text:\n\
   TXT <text>: Display text\n\
+  STXT <text>: Display scrolling text\n\
 Shorthands for PX:\n\
   PX <x> <y> 0: Set the pixel at position (x, y) to black\n\
   PX <x> <y> f: Set the pixel at position (x, y) to white\n\
@@ -356,7 +357,7 @@ void stepState(State &state, unsigned char c) {
 
   // STATS:
   case STATE_ST: {
-    state.state = c == 'A' ? STATE_STA : STATE_IDLE;
+    state.state = c == 'A' ? STATE_STA : c == 'X' ? STATE_STX : STATE_IDLE;
   } break;
   case STATE_STA: {
     state.state = c == 'T' ? STATE_STAT : STATE_IDLE;
@@ -381,6 +382,7 @@ void stepState(State &state, unsigned char c) {
   } break;
   case STATE_TXT: {
     state.textPosition = 0;
+    state.scrollingEnabled = false; // Disable scrolling when displaying static text
     state.state = c == ' ' ? STATE_TXT_SPACE : STATE_IDLE;
   } break;
   case STATE_TXT_SPACE: {
@@ -512,6 +514,50 @@ void stepState(State &state, unsigned char c) {
     }
     state.luaScript.reset();
   } break;
+
+  // STXT: Scrolling text
+  case STATE_STX: {
+    state.state = c == 'T' ? STATE_STXT : STATE_IDLE;
+  } break;
+  case STATE_STXT: {
+    state.textPosition = 0;
+    state.scrollingTextLength = 0;
+    state.scrollingEnabled = false;
+    state.state = c == ' ' ? STATE_STXT_SPACE : STATE_IDLE;
+  } break;
+  case STATE_STXT_SPACE: {
+    if (c == 0 || c == '\n') {
+      // Finalize scrolling text setup
+      state.scrollingText[state.scrollingTextLength] = 0;
+      
+      // Clear the display
+      for (int y = 0; y < HEIGHT; y++) {
+        for (int x = 0; x < WIDTH; x++) {
+          display.setPixel(x, y, 0, 255);
+        }
+      }
+      
+      // Draw the text
+      state.textPosition = 0;
+      for (size_t i = 0; i < state.scrollingTextLength; i++) {
+        auto width = display.drawCharacter(state.scrollingText[i], state.textPosition, 0);
+        state.textPosition += width;
+        display.drawCharacter(' ', state.textPosition, 0);
+        state.textPosition += 1;
+      }
+      state.scrollingTextWidth = state.textPosition;
+      state.scrollingCounter = 0;
+      state.scrollingEnabled = true;
+      state.state = STATE_IDLE;
+      break;
+    }
+    
+    // Store character if there's room
+    if (state.scrollingTextLength < state.scrollingText.size() - 1) {
+      state.scrollingText[state.scrollingTextLength++] = c;
+    }
+  } break;
+
   default:
     state.state = STATE_IDLE;
   }

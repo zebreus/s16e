@@ -56,6 +56,9 @@
 #define STATE_LUA 45
 #define STATE_SO 46
 #define STATE_SOL 47
+#define STATE_STX 48
+#define STATE_STXT 49
+#define STATE_STXT_SPACE 50
 
 struct State {
   unsigned char state = STATE_IDLE;
@@ -68,6 +71,14 @@ struct State {
   unsigned char blue = 0;
   unsigned char alpha = 0;
   size_t textPosition = 0;
+
+  // Scrolling text
+  bool scrollingEnabled = false;
+  unsigned int scrollingCounter = 0;
+  unsigned int scrollingSpeed = 50; // frames between scrolls
+  std::array<char, 256> scrollingText;
+  size_t scrollingTextLength = 0;
+  int scrollingTextWidth = 0;
 
   // Buffer for outgoing data
   RingBuffer<SEND_QUEUE_SIZE> sendingBuffer;

@@ -37,7 +37,7 @@ constexpr gpio_num_t ROW_PINS[8] = {ROW_0, ROW_1, ROW_2, ROW_3,
 // ####   Network configuration   ####
 
 constexpr char own_ssid[32] = "Strassenbahnanzeige";
-#error Insert the WiFi password in the next line (and comment this line)
+// #error Insert the WiFi password in the next line (and comment this line)
 // constexpr char foreign_ssid[32] = "Example";
 // constexpr char foreign_password[64] = "Example";
 

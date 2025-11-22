@@ -1,4 +1,5 @@
 #include "State.hpp"
+#include "../display/Display.hpp"
 #include <cstdio>
 #include <string.h>
 
@@ -24,5 +25,14 @@ int State::printf(size_t maxLength, const char *format, ...) {
 void State::processScripts() {
   if (luaScript.has_value()) {
     luaScript->executeScript();
+  }
+  
+  // Handle scrolling text
+  if (scrollingEnabled) {
+    scrollingCounter++;
+    if (scrollingCounter >= scrollingSpeed) {
+      scrollingCounter = 0;
+      display.rotate(1, 0);
+    }
   }
 }
