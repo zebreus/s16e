@@ -547,10 +547,14 @@ void stepState(State &state, unsigned char c) {
       state.scrollingTextWidth = state.textPosition;
       state.scrollingOffset = 0;
       state.scrollingCounter = 0;
-      state.scrollingEnabled = true;
+      
+      // Only enable scrolling if we have text to display
+      state.scrollingEnabled = (state.scrollingTextWidth > 0);
       
       // Initial render
-      state.renderScrollingText();
+      if (state.scrollingEnabled) {
+        state.renderScrollingText();
+      }
       
       state.state = STATE_IDLE;
       break;

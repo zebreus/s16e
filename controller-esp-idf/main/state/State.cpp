@@ -28,7 +28,7 @@ void State::processScripts() {
   }
   
   // Handle scrolling text
-  if (scrollingEnabled) {
+  if (scrollingEnabled && scrollingTextWidth > 0) {
     scrollingCounter++;
     if (scrollingCounter >= scrollingSpeed) {
       scrollingCounter = 0;
@@ -39,6 +39,8 @@ void State::processScripts() {
 }
 
 void State::renderScrollingText() {
+  static OctafontRegular font; // Static to avoid re-initialization each frame
+  
   // Clear the display
   for (int y = 0; y < HEIGHT; y++) {
     for (int x = 0; x < WIDTH; x++) {
@@ -68,7 +70,6 @@ void State::renderScrollingText() {
         virtualX += 1;
       } else {
         // Character is off-screen, but still need to advance position
-        static OctafontRegular font;
         auto width = font.get_width(scrollingText[i]);
         if (width == 255) {
           width = font.get_width('?');
