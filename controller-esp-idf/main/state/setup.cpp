@@ -554,7 +554,7 @@ void stepState(State &state, unsigned char c) {
       break;
     }
     
-    // Store character if there's room
+    // Store character if there's room (reserve 1 byte for null termination)
     if (state.scrollingTextLength < state.scrollingText.size() - 1) {
       state.scrollingText[state.scrollingTextLength++] = c;
     }
